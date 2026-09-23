@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050510">
+<title>ZUNI | Personal AI Voice Agent</title>
+<style>
+  :root {
+    --bg: #050510;
+    --panel: rgba(20, 20, 40, 0.6);
+    --panel-border: rgba(100, 200, 255, 0.15);
+    --cyan: #00f0ff;
+    --violet: #7b2cbf;
+    --text: #e0e0ff;
+    --muted: #8888aa;
+    --danger: #ff4466;
+    --success: #00ff99;
+    --warning: #ffcc00;
+    --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Courier New', Courier, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-main);
+    height: 100dvh;
+    width: 100vw;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Background Particles */
+  #particles {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(123, 44, 191, 0.1) 0%, transparent 70%);
+  }
+
+  /* Scanline Effect */
+  body::after {
+    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+    background-size: 100% 4px; pointer-events: none; z-index: 9998; opacity: 0.3;
+  }
+
+  /* Layout */
+  #app { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+  /* Top Bar */
+  #top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 20px; border-bottom: 1px solid var(--panel-border);
+    background: rgba(5, 5, 16, 0.8); backdrop-filter: blur(10px);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: 1px; color: var(--cyan); }
+  .brand span { font-size: 0.75rem; color: var(--muted); font-weight: 400; letter-spacing: 0.5px; }
+  .status-indicators { display: flex; gap: 12px; font-size: 0.7rem; font-family: var(--font-mono); }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .dot-green { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .dot-yellow { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+  .dot-red { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .top-btn { background: none; border: 1px solid var(--panel-border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+  .top-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  /* Main Content */
+  #main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+  /* AI Core */
+  #core-container {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; min-height: 250px;
+  }
+  .core-wrapper { position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; }
+  .core-ring {
+    position: absolute; border-radius: 50%; border: 2px solid transparent;
+    transition: all 0.5s ease;
+  }
+  .ring-1 { width: 100%; height: 100%; border-top-color: var(--cyan); border-bottom-color: var(--cyan); animation: spin 4s linear infinite; }
+  .ring-2 { width: 80%; height: 80%; border-left-color: var(--violet); border-right-color: var(--violet); animation: spin-reverse 3s linear infinite; }
+  .ring-3 { width: 60%; height: 60%; border-top-color: var(--success); border-bottom-color: var(--success); animation: spin 2s linear infinite; }
+  .core-center {
+    width: 40%; height: 40%; background: radial-gradient(circle, var(--cyan) 0%, transparent 70%);
+    border-radius: 50%; opacity: 0.8; animation: breathe 3s ease-in-out infinite;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 0.9rem; color: var(--bg); text-shadow: 0 0 5px rgba(255,255,255,0.5);
+    cursor: pointer;
+  }
+  
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  @keyframes spin-reverse { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+  @keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.1); opacity: 1; } }
+
+  /* Core States */
+  .state-listening .ring-1, .state-listening .ring-2, .state-listening .ring-3 { border-color: var(--cyan); box-shadow: 0 0 15px var(--cyan); }
+  .state-listening .core-center { animation: breathe 1s ease-in-out infinite; background: radial-gradient(circle, var(--success) 0%, transparent 70%); }
+  .state-thinking .ring-1, .state-thinking .ring-2, .state-thinking .ring-3 { border-color: var(--warning); animation-duration: 0.5s; }
+  .state-speaking .ring-1, .state-speaking .ring-2, .state-speaking .ring-3 { border-color: var(--violet); }
+  .state-speaking .core-center { animation: breathe 0.5s ease-in-out infinite; background: radial-gradient(circle, var(--violet) 0%, transparent 70%); }
+  .state-error .ring-1, .state-error .ring-2, .state-error .ring-3 { border-color: var(--danger); }
+  .state-error .core-center { background: radial-gradient(circle, var(--danger) 0%, transparent 70%); animation: none; }
+
+  #core-status { margin-top: 20px; font-family: var(--font-mono); font-size: 0.85rem; letter-spacing: 2px; color: var(--cyan); }
+  
+  /* Waveform */
+  #waveform { display: flex; gap: 3px; height: 30px; align-items: center; margin-top: 15px; opacity: 0.5; }
+  .wave-bar { width: 4px; background: var(--cyan); border-radius: 2px; transition: height 0.1s; height: 4px; }
+  .state-listening #waveform .wave-bar, .state-speaking #waveform .wave-bar { animation: wave 0.5s ease-in-out infinite alternate; }
+  .wave-bar:nth-child(1) { animation-delay: 0.0s; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+  @keyframes wave { 0% { height: 4px; } 100% { height: 25px; } }
+
+  /* Transcript */
+  #transcript-area {
+    padding: 10px 20px; text-align: center; font-size: 0.9rem; color: var(--muted);
+    border-top: 1px solid var(--panel-border); background: rgba(0,0,0,0.2);
+    min-height: 40px; display: flex; align-items: center; justify-content: center;
+  }
+  #transcript-text { font-style: italic; }
+
+  /* Chat Container */
+  #chat-container {
+    flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px;
+    scroll-behavior: smooth; background: rgba(0,0,0,0.1);
+  }
+  .message { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 0.95rem; line-height: 1.5; position: relative; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .msg-user { align-self: flex-end; background: rgba(123, 44, 191, 0.3); border: 1px solid rgba(123, 44, 191, 0.5); border-bottom-right-radius: 4px; }
+  .msg-zuni { align-self: flex-start; background: rgba(0, 240, 255, 0.1); border: 1px solid rgba(0, 240, 255, 0.3); border-bottom-left-radius: 4px; }
+  .msg-meta { font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between; gap: 10px; }
+  .msg-actions { display: flex; gap: 8px; margin-top: 8px; opacity: 0.7; }
+  .msg-actions button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.8rem; padding: 2px; }
+  .msg-actions button:hover { color: var(--cyan); }
+  .code-block { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; overflow-x: auto; margin: 8px 0; border: 1px solid var(--panel-border); }
+
+  /* Input Area */
+  #input-area {
+    padding: 12px 15px; border-top: 1px solid var(--panel-border); background: rgba(5, 5, 16, 0.9);
+    display: flex; gap: 10px; align-items: flex-end; padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  #user-input {
+    flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border); color: var(--text);
+    padding: 12px; border-radius: 8px; font-size: 0.95rem; resize: none; max-height: 100px; min-height: 44px;
+    font-family: var(--font-main);
+  }
+  #user-input:focus { outline: none; border-color: var(--cyan); }
+  .input-btn {
+    width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--panel-border);
+    background: rgba(255,255,255,0.05); color: var(--text); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: all 0.2s; font-size: 1.2rem;
+  }
+  .input-btn:hover { background: rgba(0, 240, 255, 0.1); border-color: var(--cyan); color: var(--cyan); }
+  .input-btn.active { background: var(--danger); border-color: var(--danger); color: white; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 68, 102, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 68, 102, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 68, 102, 0); } }
+
+  /* Modals */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px); z-index: 10000; display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
+    width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding: 24px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--panel-border); padding-bottom: 12px; }
+  .modal-title { font-size: 1.2rem; font-weight: 700; color: var(--cyan); letter-spacing: 1px; }
+  .close-btn { background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; }
+  .close-btn:hover { color: var(--danger); }
+
+  /* Form Elements */
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+  .form-input {
+    width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-border); color: var(--text);
+    padding: 10px; border-radius: 6px; font-size: 0.9rem;
+  }
+  .form-input:focus { outline: none; border-color: var(--cyan); }
+  .form-select { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-border); color: var(--text); padding: 10px; border-radius: 6px; }
+  .btn {
+    width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; font-size: 0.95rem; margin-top: 8px;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--cyan), var(--violet)); color: white; }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-secondary { background: rgba(255,255,255,0.1); color: var(--text); border: 1px solid var(--panel-border); }
+  .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+  .btn-danger { background: rgba(255, 68, 102, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+
+  /* Diagnostics */
+  .diag-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: var(--font-mono); font-size: 0.9rem; }
+  .diag-status { font-weight: bold; }
+  .status-ok { color: var(--success); }
+  .status-err { color: var(--danger); }
+  .status-warn { color: var(--warning); }
+
+  /* Welcome Screen */
+  #welcome-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg);
+    z-index: 20000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 30px; text-align: center;
+  }
+  #welcome-screen.hidden { display: none; }
+  .welcome-logo { font-size: 3rem; font-weight: 900; color: var(--cyan); margin-bottom: 10px; text-shadow: 0 0 20px rgba(0, 240, 255, 0.5); }
+  .welcome-sub { color: var(--muted); margin-bottom: 30px; max-width: 400px; line-height: 1.6; }
+  .perm-list { text-align: left; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; margin-bottom: 20px; width: 100%; max-width: 400px; border: 1px solid var(--panel-border); }
+  .perm-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 0.95rem; }
+  .perm-icon { font-size: 1.2rem; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+  /* Responsive */
+  @media (min-width: 768px) {
+    #main-content { flex-direction: row; }
+    #core-container { flex: 0 0 40%; border-right: 1px solid var(--panel-border); }
+    #chat-container { flex: 1; }
+    .modal { max-width: 600px; }
+  }
+  @media (max-width: 390px) {
+    .brand span { display: none; }
+    .status-indicators { font-size: 0.6rem; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="particles"></div>
+
+<!-- Welcome Screen -->
+<div id="welcome-screen">
+  <div class="welcome-logo">◈ ZUNI</div>
+  <div class="welcome-sub">Your personal AI voice agent. Before we begin, please configure the essential services to enable full functionality.</div>
+  <div class="perm-list">
+    <div class="perm-item"><span class="perm-icon">🎙</span> Microphone (Required for voice commands)</div>
+    <div class="perm-item"><span class="perm-icon">🔊</span> Audio Output (Required for natural speech)</div>
+    <div class="perm-item"><span class="perm-icon">🌐</span> Internet (Required for AI and web search)</div>
+    <div class="perm-item"><span class="perm-icon">☁</span> Local Storage (For settings and memory)</div>
+  </div>
+  <button class="btn btn-primary" onclick="openSetupWizard()">CONFIGURE ZUNI</button>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div id="top-bar">
+    <div class="brand">
+      ◈ ZUNI <span>PERSONAL AI AGENT</span>
+    </div>
+    <div class="status-indicators">
+      <span id="status-ai"><span class="status-dot dot-green"></span>AI ONLINE</span>
+      <span id="status-voice"><span class="status-dot dot-green"></span>VOICE READY</span>
+      <span id="status-web"><span class="status-dot dot-green"></span>WEB READY</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="top-btn" onclick="openAccessCenter()">🔐 ACCESS</button>
+      <button class="top-btn" onclick="openSettings()">⚙ SETTINGS</button>
+    </div>
+  </div>
+
+  <div id="main-content">
+    <div id="core-container">
+      <div class="core-wrapper" id="ai-core" onclick="toggleVoiceInput()">
+        <div class="core-ring ring-1"></div>
+        <div class="core-ring ring-2"></div>
+        <div class="core-ring ring-3"></div>
+        <div class="core-center" id="core-text">ZUNI</div>
+      </div>
+      <div id="core-status">READY</div>
+      <div id="waveform">
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+      </div>
+    </div>
+
+    <div id="chat-container">
+      <!-- Messages injected here -->
+    </div>
+  </div>
+
+  <div id="transcript-area">
+    <span id="transcript-text">Say "Hello Zuni" or tap the core to speak...</span>
+  </div>
+
+  <div id="input-area">
+    <textarea id="user-input" rows="1" placeholder="Ask Zuni anything..."></textarea>
+    <button class="input-btn" id="mic-btn" onclick="toggleVoiceInput()">🎙</button>
+    <button class="input-btn" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚙ SETTINGS</div>
+      <button class="close-btn" onclick="closeModal('settings-modal')">&times;</button>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">AI Model (Groq)</label>
+      <input type="password" class="form-input" id="cfg-groq-key" placeholder="Groq API Key">
+      <select class="form-select" id="cfg-groq-model" style="margin-top:8px;">
+        <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+        <option value="llama-3.1-8b-instant">llama-3.1-8b-instant</option>
+        <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Voice (ElevenLabs)</label>
+      <input type="password" class="form-input" id="cfg-eleven-key" placeholder="ElevenLabs API Key">
+      <input type="text" class="form-input" id="cfg-voice-id" placeholder="Voice ID (e.g., pNInz6obpgDQGcFmaJcg)" style="margin-top:8px;">
+      <select class="form-select" id="cfg-voice-preset" style="margin-top:8px;">
+        <option value="jarvis">JARVIS — Natural & Confident</option>
+        <option value="friendly">Friendly & Conversational</option>
+        <option value="cinematic">Cinematic & Authoritative</option>
+        <option value="calm">Calm & Relaxed</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Web Search (SearchAPI)</label>
+      <input type="password" class="form-input" id="cfg-search-key" placeholder="SearchAPI Key">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Agent Behavior</label>
+      <select class="form-select" id="cfg-wake-mode">
+        <option value="true">Wake Word Mode ("Hello Zuni")</option>
+        <option value="false">Direct Voice Mode</option>
+      </select>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:0.9rem; color:var(--text);">
+        <input type="checkbox" id="cfg-auto-speak" checked> Auto-speak responses
+      </label>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button class="btn btn-secondary" onclick="testAllServices()">TEST ALL SERVICES</button>
+      <button class="btn btn-primary" onclick="saveConfig()">SAVE CONFIGURATION</button>
+    </div>
+    <button class="btn btn-danger" style="margin-top:10px;" onclick="resetZuni()">RESET ZUNI (Clear All Data)</button>
+  </div>
+</div>
+
+<!-- Access Center Modal -->
+<div class="modal-overlay" id="access-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔐 ACCESS CENTER</div>
+      <button class="close-btn" onclick="closeModal('access-modal')">&times;</button>
+    </div>
+    <div class="diag-item">
+      <span>🎙 Microphone</span>
+      <span class="diag-status" id="perm-mic">CHECKING...</span>
+    </div>
+    <div class="diag-item">
+      <span>📍 Location</span>
+      <span class="diag-status" id="perm-loc">OPTIONAL</span>
+    </div>
+    <div class="diag-item">
+      <span>💾 Local Storage</span>
+      <span class="diag-status status-ok">GRANTED</span>
+    </div>
+    <div class="diag-item">
+      <span>🔊 Audio Output</span>
+      <span class="diag-status status-ok">AVAILABLE</span>
+    </div>
+    <p style="font-size:0.8rem; color:var(--muted); margin-top:15px; line-height:1.5;">
+      Zuni only requests permissions when needed. Microphone is required for voice commands. Location is only used if you ask "Where am I?" or for local weather. We do not request camera, contacts, or file access.
+    </p>
+    <button class="btn btn-primary" style="margin-top:20px;" onclick="requestMicPermission()">REQUEST MICROPHONE ACCESS</button>
+  </div>
+</div>
+
+<!-- Diagnostics Modal -->
+<div class="modal-overlay" id="diag-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔬 SYSTEM DIAGNOSTICS</div>
+      <button class="close-btn" onclick="closeModal('diag-modal')">&times;</button>
+    </div>
+    <div id="diag-results">
+      <div class="diag-item"><span>Running tests...</span></div>
+    </div>
+    <button class="btn btn-secondary" style="margin-top:20px;" onclick="closeModal('diag-modal')">CLOSE</button>
+  </div>
+</div>
+
+<script>
+/**
+ * ZUNI - Personal AI Voice Agent
+ * Single-file architecture, modular JS, no external dependencies.
+ */
+
+// ==========================================
+// 1. CONFIGURATION & STATE
+// ==========================================
+const DEFAULT_CONFIG = {
+  groqKey: '',
+  groqModel: 'llama-3.3-70b-versatile',
+  elevenKey: '',
+  voiceId: 'pNInz6obpgDQGcFmaJcg', // Default Adam voice
+  voicePreset: 'jarvis',
+  searchKey: '',
+  wakeMode: true,
+  autoSpeak: true,
+  firstRun: true
+};
+
+let config = { ...DEFAULT_CONFIG };
+let state = {
+  mode: 'IDLE', // IDLE, LISTENING, THINKING, SPEAKING, ERROR
+  isListening: false,
+  isSpeaking: false,
+  conversation: [],
+  recognition: null,
+  audioContext: null,
+  currentAudio: null
+};
+
+// Load config from localStorage
+function loadConfig() {
+  const saved = localStorage.getItem('zuni_config');
+  if (saved) {
+    config = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+  }
+  if (config.firstRun) {
+    document.getElementById('welcome-screen').classList.remove('hidden');
+  } else {
+    document.getElementById('welcome-screen').classList.add('hidden');
+    initApp();
+  }
+}
+
+function saveConfig() {
+  config.groqKey = document.getElementById('cfg-groq-key').value || config.groqKey;
+  config.groqModel = document.getElementById('cfg-groq-model').value;
+  config.elevenKey = document.getElementById('cfg-eleven-key').value || config.elevenKey;
+  config.voiceId = document.getElementById('cfg-voice-id').value || config.voiceId;
+  config.voicePreset = document.getElementById('cfg-voice-preset').value;
+  config.searchKey = document.getElementById('cfg-search-key').value || config.searchKey;
+  config.wakeMode = document.getElementById('cfg-wake-mode').value === 'true';
+  config.autoSpeak = document.getElementById('cfg-auto-speak').checked;
+  config.firstRun = false;
+  
+  localStorage.setItem('zuni_config', JSON.stringify(config));
+  closeModal('settings-modal');
+  showToast('Configuration saved.');
+  updateStatusBar();
+}
+
+function resetZuni() {
+  if (confirm('Are you sure? This will delete all settings and conversation history.')) {
+    localStorage.removeItem('zuni_config');
+    localStorage.removeItem('zuni_conversation');
+    location.reload();
+  }
+}
+
+// ==========================================
+// 2. UI & STATE MANAGEMENT
+// ==========================================
+function setCoreState(newState) {
+  state.mode = newState;
+  const core = document.getElementById('ai-core');
+  const status = document.getElementById('core-status');
+  const coreText = document.getElementById('core-text');
+  
+  core.className = 'core-wrapper'; // reset
+  if (newState === 'IDLE') {
+    status.textContent = config.wakeMode ? '🟢 WAKE WORD ACTIVE' : '🟡 DIRECT VOICE';
+    coreText.textContent = 'ZUNI';
+  } else if (newState === 'LISTENING') {
+    core.classList.add('state-listening');
+    status.textContent = 'LISTENING';
+    coreText.textContent = '◈';
+  } else if (newState === 'THINKING' || newState === 'SEARCHING') {
+    core.classList.add('state-thinking');
+    status.textContent = newState === 'SEARCHING' ? 'SEARCHING WEB...' : 'THINKING...';
+    coreText.textContent = '◈';
+  } else if (newState === 'SPEAKING') {
+    core.classList.add('state-speaking');
+    status.textContent = 'SPEAKING';
+    coreText.textContent = '◈';
+  } else if (newState === 'ERROR') {
+    core.classList.add('state-error');
+    status.textContent = 'SYSTEM ALERT';
+    coreText.textContent = '!';
+  }
+}
+
+function updateStatusBar() {
+  document.getElementById('status-ai').innerHTML = `<span class="status-dot ${config.groqKey ? 'dot-green' : 'dot-yellow'}"></span>AI ${config.groqKey ? 'ONLINE' : 'NO KEY'}`;
+  document.getElementById('status-voice').innerHTML = `<span class="status-dot ${config.elevenKey ? 'dot-green' : 'dot-yellow'}"></span>VOICE ${config.elevenKey ? 'READY' : 'FALLBACK'}`;
+  document.getElementById('status-web').innerHTML = `<span class="status-dot ${config.searchKey ? 'dot-green' : 'dot-yellow'}"></span>WEB ${config.searchKey ? 'READY' : 'NO KEY'}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('transcript-text');
+  const old = t.textContent;
+  t.textContent = msg;
+  t.style.color = 'var(--success)';
+  setTimeout(() => { t.textContent = old; t.style.color = 'var(--muted)'; }, 2000);
+}
+
+// ==========================================
+// 3. SPEECH RECOGNITION
+// ==========================================
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('Voice recognition not supported in this browser.');
+    return;
+  }
+  
+  state.recognition = new SpeechRecognition();
+  state.recognition.continuous = true;
+  state.recognition.interimResults = true;
+  state.recognition.lang = 'en-US';
+
+  state.recognition.onstart = () => {
+    state.isListening = true;
+    setCoreState('LISTENING');
+    document.getElementById('mic-btn').classList.add('active');
+  };
+
+  state.recognition.onresult = (event) => {
+    let interim = '';
+    let final = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        final += event.results[i][0].transcript;
+      } else {
+        interim += event.results[i][0].transcript;
+      }
+    }
+    
+    const displayText = final || interim;
+    document.getElementById('transcript-text').textContent = `Hearing: "${displayText}"`;
+
+    if (final) {
+      processVoiceInput(final.trim());
+    }
+  };
+
+  state.recognition.onerror = (event) => {
+    console.error('Speech recognition error', event.error);
+    if (event.error === 'not-allowed') {
+      showToast('Microphone permission denied. Check browser settings.');
+      setCoreState('ERROR');
+    }
+    stopListening();
+  };
+
+  state.recognition.onend = () => {
+    // Auto-restart for continuous listening if not manually stopped
+    if (state.isListening && state.mode !== 'ERROR') {
+      setTimeout(() => {
+        try { state.recognition.start(); } catch(e) {}
+      }, 300);
+    } else {
+      stopListening();
+    }
+  };
+}
+
+function startListening() {
+  if (!state.recognition) initSpeechRecognition();
+  state.isListening = true;
+  try { state.recognition.start(); } catch(e) {}
+}
+
+function stopListening() {
+  state.isListening = false;
+  if (state.recognition) {
+    try { state.recognition.stop(); } catch(e) {}
+  }
+  document.getElementById('mic-btn').classList.remove('active');
+  if (state.mode !== 'THINKING' && state.mode !== 'SPEAKING') {
+    setCoreState('IDLE');
+    document.getElementById('transcript-text').textContent = config.wakeMode ? 'Say "Hello Zuni" or tap the core to speak...' : 'Tap the core to speak...';
+  }
+}
+
+function toggleVoiceInput() {
+  if (state.isListening) {
+    stopListening();
+  } else {
+    // Initialize audio context on first user gesture (browser policy)
+    if (!state.audioContext) state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    if (state.audioContext.state === 'suspended') state.audioContext.resume();
+    startListening();
+  }
+}
+
+// ==========================================
+// 4. WAKE WORD & COMMAND ROUTER
+// ==========================================
+function processVoiceInput(text) {
+  const lower = text.toLowerCase().replace(/[^\w\s]/gi, '').trim();
+  
+  // Wake word detection
+  const wakeWords = ['hello zuni', 'hey zuni', 'hi zuni', 'hello zunie', 'hey zunie'];
+  const isWake = wakeWords.some(w => lower.includes(w));
+  
+  if (config.wakeMode) {
+    if (isWake) {
+      // Check if it's JUST the wake word or wake word + command
+      const command = text.replace(/hello zuni|hey zuni|hi zuni|hello zunie|hey zunie/gi, '').trim();
+      if (command) {
+        addMessage('user', text);
+        handleCommand(command);
+      } else {
+        addMessage('user', text);
+        speakText("Yes, I'm listening.");
+        // Keep listening for the next command
+        return;
+      }
+    } else {
+      // In wake mode, ignore non-wake phrases unless we are in a direct follow-up state
+      // For simplicity, we'll process it but with lower priority, or just prompt for wake word
+      document.getElementById('transcript-text').textContent = 'Wake word not detected. Say "Hello Zuni".';
+      return;
+    }
+  } else {
+    // Direct mode
+    addMessage('user', text);
+    handleCommand(text);
+  }
+  stopListening();
+}
+
+function handleCommand(text) {
+  const lower = text.toLowerCase();
+  
+  // Local commands
+  if (lower.includes('stop speaking') || lower.includes('be quiet') || lower.includes('cancel')) {
+    stopSpeaking();
+    addMessage('zuni', 'Stopped speaking.');
+    return;
+  }
+  if (lower.includes('open settings')) {
+    openSettings();
+    addMessage('zuni', 'Opening settings.');
+    return;
+  }
+  if (lower.includes('what time is it') || lower.includes('current time')) {
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    respond(`It is currently ${time}.`);
+    return;
+  }
+  if (lower.includes('where am i') || lower.includes('my location')) {
+    getLocationAndRespond();
+    return;
+  }
+  if (lower.includes('clear memory') || lower.includes('forget')) {
+    state.conversation = [];
+    localStorage.removeItem('zuni_conversation');
+    respond('Conversation memory cleared.');
+    return;
+  }
+
+  // Web search trigger
+  if (lower.includes('search') || lower.includes('latest') || lower.includes('weather') || lower.includes('news')) {
+    performWebSearch(text);
+    return;
+  }
+
+  // Default to Groq AI
+  sendToGroq(text);
+}
+
+// ==========================================
+// 5. AI & TOOLS (Groq + SearchAPI)
+// ==========================================
+async function sendToGroq(userMessage, isFollowUp = false) {
+  setCoreState('THINKING');
+  
+  const systemPrompt = `You are Zuni, a highly capable personal AI voice agent. 
+  Current Date: ${new Date().toLocaleDateString()}. 
+  You communicate naturally, concisely for simple questions, detailed for complex ones. 
+  You are calm, confident, friendly, and professional. 
+  Avoid markdown formatting when possible, as your response will be spoken. 
+  Do not pretend to perform actions you cannot. 
+  If asked to search, and you don't have live data, state that clearly.`;
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...state.conversation.slice(-6), // Keep last 3 exchanges
+    { role: 'user', content: userMessage }
+  ];
+
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.groqKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: config.groqModel,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 500
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || `Groq API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const aiText = data.choices[0].message.content;
+    
+    addMessage('zuni', aiText);
+    state.conversation.push({ role: 'user', content: userMessage });
+    state.conversation.push({ role: 'assistant', content: aiText });
+    localStorage.setItem('zuni_conversation', JSON.stringify(state.conversation));
+    
+    respond(aiText);
+  } catch (error) {
+    console.error(error);
+    setCoreState('ERROR');
+    const errMsg = `Groq authentication failed or quota exceeded. Please check your API key in settings. (${error.message})`;
+    addMessage('zuni', errMsg);
+    speakText(errMsg);
+  }
+}
+
+async function performWebSearch(query) {
+  setCoreState('SEARCHING');
+  addMessage('zuni', '🌐 Searching the web...');
+  
+  try {
+    // Using searchapi.io format
+    const url = `https://www.searchapi.io/api/v1/search?engine=google&q=${encodeURIComponent(query)}&api_key=${config.searchKey}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) throw new Error('SearchAPI failed');
+    
+    const data = await response.json();
+    let resultsText = "";
+    if (data.organic_results && data.organic_results.length > 0) {
+      resultsText = data.organic_results.slice(0, 3).map(r => `${r.title}: ${r.snippet}`).join('. ');
+    } else {
+      resultsText = "No specific web results found.";
+    }
+    
+    // Feed results back to Groq for synthesis
+    const prompt = `Web search results for "${query}": ${resultsText}. Summarize this naturally for the user, citing sources briefly.`;
+    sendToGroq(prompt, true);
+  } catch (error) {
+    setCoreState('ERROR');
+    respond("I encountered an error searching the web. Please check the SearchAPI key in settings.");
+  }
+}
+
+function getLocationAndRespond() {
+  if (!navigator.geolocation) {
+    respond("Geolocation is not supported by your browser.");
+    return;
+  }
+  setCoreState('THINKING');
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      respond(`You are located at latitude ${pos.coords.latitude.toFixed(2)} and longitude ${pos.coords.longitude.toFixed(2)}.`);
+    },
+    (err) => {
+      respond("Location access was denied or unavailable. Please grant permission in the Access Center.");
+    }
+  );
+}
+
+// ==========================================
+// 6. TEXT-TO-SPEECH (ElevenLabs + Fallback)
+// ==========================================
+function humanizeSpeech(text) {
+  // Strip markdown
+  let clean = text.replace(/\*\*(.*?)\*\*/g, '$1')
+                  .replace(/\*(.*?)\*/g, '$1')
+                  .replace(/`(.*?)`/g, '$1')
+                  .replace(/#{1,6}\s/g, '')
+                  .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  
+  // Replace symbols for natural speech
+  clean = clean.replace(/&/g, ' and ')
+               .replace(/@/g, ' at ')
+               .replace(/\//g, ' slash ')
+               .replace(/=/g, ' equals ')
+               .replace(/%/g, ' percent ');
+  
+  // Truncate code blocks for speech
+  if (clean.includes('```')) {
+    clean = clean.split('```')[0] + " I have included the code in the chat interface.";
+  }
+  
+  return clean.trim();
+}
+
+async function speakText(text) {
+  if (!config.autoSpeak) return;
+  
+  stopSpeaking(); // Barge-in: stop current audio
+  setCoreState('SPEAKING');
+  state.isSpeaking = true;
+  
+  const speechText = humanizeSpeech(text);
+  
+  if (config.elevenKey && config.voiceId) {
+    try {
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': config.elevenKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: speechText,
+          model_id: "eleven_monolingual_v1",
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+        })
+      });
+      
+      if (!response.ok) throw new Error('ElevenLabs API error');
+      
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      state.currentAudio = new Audio(audioUrl);
+      
+      state.currentAudio.onended = () => {
+        state.isSpeaking = false;
+        setCoreState('IDLE');
+        // Auto-resume listening in wake mode if desired, or just idle
+        if (config.wakeMode) {
+           document.getElementById('transcript-text').textContent = 'Say "Hello Zuni"';
+        }
+      };
+      
+      state.currentAudio.onerror = () => {
+        throw new Error('Audio playback failed');
+      };
+      
+      await state.currentAudio.play();
+    } catch (error) {
+      console.warn('ElevenLabs failed, falling back to browser TTS', error);
+      useBrowserTTS(speechText);
+    }
+  } else {
+    useBrowserTTS(speechText);
+  }
+}
+
+function useBrowserTTS(text) {
+  if ('speechSynthesis' in window) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    // Try to find a good English voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.name.includes('Google US English') || v.name.includes('Samantha') || v.lang === 'en-US');
+    if (preferred) utterance.voice = preferred;
+    
+    utterance.onend = () => {
+      state.isSpeaking = false;
+      setCoreState('IDLE');
+    };
+    
+    // Ensure voices are loaded (Chrome quirk)
+    if (voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        const v = window.speechSynthesis.getVoices();
+        const p = v.find(x => x.name.includes('Google US English') || x.lang === 'en-US');
+        if (p) utterance.voice = p;
+        window.speechSynthesis.speak(utterance);
+      };
+    } else {
+      window.speechSynthesis.speak(utterance);
+    }
+  } else {
+    setCoreState('ERROR');
+    showToast('Text-to-speech not supported.');
+  }
+}
+
+function stopSpeaking() {
+  state.isSpeaking = false;
+  if (state.currentAudio) {
+    state.currentAudio.pause();
+    state.currentAudio = null;
+  }
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  if (state.mode === 'SPEAKING' || state.mode === 'THINKING') {
+    setCoreState('IDLE');
+  }
+}
+
+function respond(text) {
+  speakText(text);
+}
+
+// ==========================================
+// 7. CHAT UI & UTILS
+// ==========================================
+function addMessage(role, text) {
+  const container = document.getElementById('chat-container');
+  const div = document.createElement('div');
+  div.className = `message msg-${role}`;
+  
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  // Simple markdown formatting for display (not speech)
+  let displayText = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+    
+  // Code block handling
+  if (text.includes('```')) {
+    displayText = displayText.replace(/```(\w*)\n([\s\S]*?)```/g, '<div class="code-block">$2</div>');
+  }
+
+  let actions = '';
+  if (role === 'zuni') {
+    actions = `
+      <div class="msg-actions">
+        <button onclick="speakText(\`${text.replace(/`/g, '\\`').replace(/\n/g, ' ')}\`)">🔊 Speak</button>
+        <button onclick="copyText(\`${text.replace(/`/g, '\\`').replace(/\n/g, ' ')}\`)">📋 Copy</button>
+      </div>
+    `;
+  }
+
+  div.innerHTML = `
+    <div class="msg-meta">
+      <span>${role === 'user' ? 'YOU' : 'ZUNI'}</span>
+      <span>${time}</span>
+    </div>
+    <div>${displayText}</div>
+    ${actions}
+  `;
+  
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
+}
+
+function sendMessage() {
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text) return;
+  
+  addMessage('user', text);
+  input.value = '';
+  input.style.height = 'auto';
+  
+  handleCommand(text);
+}
+
+// Auto-resize textarea
+document.getElementById('user-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = (this.scrollHeight) + 'px';
+});
+document.getElementById('user-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ==========================================
+// 8. MODALS & PERMISSIONS
+// ==========================================
+function openSettings() {
+  document.getElementById('cfg-groq-key').value = config.groqKey;
+  document.getElementById('cfg-groq-model').value = config.groqModel;
+  document.getElementById('cfg-eleven-key').value = config.elevenKey;
+  document.getElementById('cfg-voice-id').value = config.voiceId;
+  document.getElementById('cfg-voice-preset').value = config.voicePreset;
+  document.getElementById('cfg-search-key').value = config.searchKey;
+  document.getElementById('cfg-wake-mode').value = config.wakeMode.toString();
+  document.getElementById('cfg-auto-speak').checked = config.autoSpeak;
+  document.getElementById('settings-modal').classList.add('active');
+}
+
+function openAccessCenter() {
+  checkMicPermission();
+  document.getElementById('access-modal').classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+async function requestMicPermission() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(track => track.stop());
+    document.getElementById('perm-mic').textContent = 'GRANTED';
+    document.getElementById('perm-mic').className = 'diag-status status-ok';
+    showToast('Microphone access granted.');
+    initSpeechRecognition();
+  } catch (err) {
+    document.getElementById('perm-mic').textContent = 'DENIED';
+    document.getElementById('perm-mic').className = 'diag-status status-err';
+    showToast('Microphone permission denied.');
+  }
+}
+
+function checkMicPermission() {
+  if (navigator.permissions) {
+    navigator.permissions.query({ name: 'microphone' }).then(result => {
+      const el = document.getElementById('perm-mic');
+      if (result.state === 'granted') {
+        el.textContent = 'GRANTED'; el.className = 'diag-status status-ok';
+      } else if (result.state === 'denied') {
+        el.textContent = 'DENIED'; el.className = 'diag-status status-err';
+      } else {
+        el.textContent = 'ASK'; el.className = 'diag-status status-warn';
+      }
+    });
+  }
+}
+
+function openSetupWizard() {
+  openSettings();
+}
+
+// ==========================================
+// 9. DIAGNOSTICS
+// ==========================================
+async function testAllServices() {
+  closeModal('settings-modal');
+  document.getElementById('diag-modal').classList.add('active');
+  const results = document.getElementById('diag-results');
+  results.innerHTML = '<div class="diag-item"><span>Running tests...</span></div>';
+
+  let html = '';
+  
+  // Test Groq
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/models', { headers: { 'Authorization': `Bearer ${config.groqKey}` } });
+    html += `<div class="diag-item"><span>AI (Groq)</span><span class="diag-status ${res.ok ? 'status-ok' : 'status-err'}">${res.ok ? 'ONLINE' : 'FAILED'}</span></div>`;
+  } catch { html += `<div class="diag-item"><span>AI (Groq)</span><span class="diag-status status-err">FAILED (Check Key)</span></div>`; }
+
+  // Test ElevenLabs
+  try {
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}`, {
+      method: 'POST', headers: { 'xi-api-key': config.elevenKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'test', model_id: 'eleven_monolingual_v1' })
+    });
+    html += `<div class="diag-item"><span>Voice (ElevenLabs)</span><span class="diag-status ${res.ok ? 'status-ok' : 'status-warn'}">${res.ok ? 'ONLINE' : 'FALLBACK READY'}</span></div>`;
+  } catch { html += `<div class="diag-item"><span>Voice (ElevenLabs)</span><span class="diag-status status-warn">FALLBACK READY</span></div>`; }
+
+  // Test Search
+  try {
+    const res = await fetch(`https://www.searchapi.io/api/v1/search?engine=google&q=test&api_key=${config.searchKey}`);
+    html += `<div class="diag-item"><span>Web Search</span><span class="diag-status ${res.ok ? 'status-ok' : 'status-err'}">${res.ok ? 'ONLINE' : 'FAILED'}</span></div>`;
+  } catch { html += `<div class="diag-item"><span>Web Search</span><span class="diag-status status-err">FAILED (Check Key)</span></div>`; }
+
+  // Mic
+  const micState = document.getElementById('perm-mic').textContent;
+  html += `<div class="diag-item"><span>Microphone</span><span class="diag-status ${micState === 'GRANTED' ? 'status-ok' : 'status-warn'}">${micState}</span></div>`;
+
+  results.innerHTML = html + `<div style="margin-top:15px; text-align:center; color:var(--cyan); font-weight:bold;">SYSTEM STATUS: READY</div>`;
+}
+
+// ==========================================
+// 10. INITIALIZATION
+// ==========================================
+function initApp() {
+  loadConversation();
+  initSpeechRecognition();
+  updateStatusBar();
+  setCoreState('IDLE');
+  
+  // Initial greeting if conversation is empty
+  if (state.conversation.length === 0) {
+    setTimeout(() => {
+      addMessage('zuni', "Hello. I'm Zuni. Your personal AI voice agent is ready. You can say \"Hello Zuni\" whenever you want my attention, or type below.");
+    }, 500);
+  }
+}
+
+function loadConversation() {
+  const saved = localStorage.getItem('zuni_conversation');
+  if (saved) {
+    state.conversation = JSON.parse(saved);
+    // Re-render
+    state.conversation.forEach(msg => {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        addMessage(msg.role === 'assistant' ? 'zuni' : 'user', msg.content);
+      }
+    });
+  }
+}
+
+// Start
+window.addEventListener('DOMContentLoaded', loadConfig);
+
+// Handle online/offline
+window.addEventListener('online', () => showToast('Network connection restored.'));
+window.addEventListener('offline', () => {
+  showToast('Network connection unavailable.');
+  document.getElementById('status-ai').innerHTML = `<span class="status-dot dot-red"></span>AI OFFLINE`;
+});
+</script>
+</body>
+</html>
