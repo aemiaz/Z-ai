@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ZUNI — Personal AI Agent</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%2305070d%22/><circle cx=%2250%22 cy=%2250%22 r=%2224%22 fill=%22none%22 stroke=%22%234dd8e6%22 stroke-width=%226%22/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --bg:#05070d;
+  --bg2:#080b14;
+  --panel:rgba(18,24,38,.62);
+  --panel-solid:#0d121d;
+  --border:rgba(120,160,200,.14);
+  --cyan:#4dd8e6;
+  --cyan-dim:rgba(77,216,230,.35);
+  --violet:#9b6bff;
+  --violet-dim:rgba(155,107,255,.35);
+  --text:#eef3f8;
+  --muted:#7c8aa0;
+  --muted2:#4d5972;
+  --danger:#ff5470;
+  --success:#38f2b0;
+  --warn:#ffb84d;
+  --font-display:'Space Grotesk',system-ui,sans-serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --r-sm:10px;--r-md:16px;--r-lg:24px;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*,*::before,*::after{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;min-height:100dvh;background:var(--bg);color:var(--text);
+  font-family:var(--font-body);-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;position:relative;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(77,216,230,.10), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 90%, rgba(155,107,255,.10), transparent 60%),
+    linear-gradient(180deg,var(--bg2),var(--bg));
+}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+a{color:var(--cyan);}
+button{font-family:var(--font-body);}
+.hidden{display:none !important;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+
+/* ============ LAYOUT SHELL ============ */
+#app{position:relative;z-index:1;max-width:720px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;}
+
+/* ---- top bar ---- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+  background:rgba(5,7,13,.7);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
+}
+.brand{display:flex;flex-direction:column;line-height:1.1;}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:.08em;display:flex;align-items:center;gap:8px;}
+.brand-name svg{flex:none;}
+.brand-sub{font-size:10px;color:var(--muted);letter-spacing:.16em;margin-top:2px;}
+.topbar-right{display:flex;align-items:center;gap:6px;}
+.pill{
+  display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);
+  padding:6px 10px;border:1px solid var(--border);border-radius:99px;background:rgba(255,255,255,.02);
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);box-shadow:0 0 0 0 transparent;flex:none;}
+.dot.on{background:var(--success);box-shadow:0 0 8px var(--success);}
+.dot.warn{background:var(--warn);box-shadow:0 0 8px var(--warn);}
+.dot.off{background:var(--danger);box-shadow:0 0 8px var(--danger);}
+.icon-btn{
+  width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.02);
+  color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;
+}
+.icon-btn:hover{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(77,216,230,.06);}
+.icon-btn:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+
+/* ---- core stage ---- */
+.stage{padding:26px 16px 8px;display:flex;flex-direction:column;align-items:center;gap:14px;}
+.core-wrap{position:relative;width:min(56vw,240px);height:min(56vw,240px);display:flex;align-items:center;justify-content:center;}
+.core-ring{position:absolute;border-radius:50%;border:1px solid var(--cyan-dim);}
+.ring1{inset:0;animation:spin 18s linear infinite;}
+.ring2{inset:14%;border-color:var(--violet-dim);animation:spin 12s linear infinite reverse;}
+.ring3{inset:28%;animation:breathe 4s ease-in-out infinite;}
+.core-orb{
+  position:relative;width:44%;height:44%;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.5), rgba(77,216,230,.35) 40%, rgba(155,107,255,.25) 75%, transparent 100%);
+  box-shadow:0 0 40px 6px rgba(77,216,230,.25), inset 0 0 30px rgba(155,107,255,.3);
+  animation:breathe 4s ease-in-out infinite;
+  display:flex;align-items:center;justify-content:center;
+}
+.core-orb::after{content:"";position:absolute;inset:18%;border-radius:50%;background:rgba(255,255,255,.06);}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:.85;}50%{transform:scale(1.06);opacity:1;}}
+.core-wrap[data-state="listening"] .core-orb{animation:pulseFast 1.4s ease-in-out infinite;box-shadow:0 0 60px 10px rgba(77,216,230,.45);}
+.core-wrap[data-state="listening"] .ring1,.core-wrap[data-state="listening"] .ring2{animation-duration:6s,5s;}
+.core-wrap[data-state="thinking"] .core-orb{animation:spinPulse 1.6s linear infinite;}
+.core-wrap[data-state="speaking"] .core-orb{animation:pulseFast .5s ease-in-out infinite alternate;box-shadow:0 0 60px 12px rgba(155,107,255,.5);}
+.core-wrap[data-state="error"] .core-orb{background:radial-gradient(circle at 35% 30%, #fff, rgba(255,84,112,.4) 45%, transparent 100%);box-shadow:0 0 50px 10px rgba(255,84,112,.4);animation:pulseFast .8s ease-in-out infinite;}
+@keyframes pulseFast{0%{transform:scale(1);}100%{transform:scale(1.1);}}
+@keyframes spinPulse{0%{transform:scale(1) rotate(0);}50%{transform:scale(1.05) rotate(180deg);}100%{transform:scale(1) rotate(360deg);}}
+.reduced-motion .core-ring,.reduced-motion .core-orb{animation:none !important;}
+
+.core-label{font-family:var(--font-display);font-weight:700;letter-spacing:.12em;font-size:13px;color:var(--cyan);text-align:center;}
+.core-sub{font-size:12px;color:var(--muted);letter-spacing:.06em;text-align:center;min-height:16px;}
+
+.waveform{display:flex;align-items:flex-end;gap:3px;height:28px;margin-top:2px;}
+.waveform span{width:3px;background:linear-gradient(180deg,var(--cyan),var(--violet));border-radius:2px;height:6px;transition:height .12s ease;}
+.core-wrap[data-state="listening"] ~ .waveform span,.core-wrap[data-state="speaking"] ~ .waveform span{animation:wave 1s ease-in-out infinite;}
+@keyframes wave{0%,100%{height:6px;}50%{height:24px;}}
+
+.transcript-line{min-height:20px;font-size:13px;color:var(--muted);text-align:center;padding:0 20px;max-width:100%;}
+.transcript-line b{color:var(--text);font-weight:500;}
+
+/* ---- status bar ---- */
+.statusbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:10px 16px 4px;}
+.status-chip{display:flex;align-items:center;gap:6px;font-size:10.5px;letter-spacing:.05em;color:var(--muted);padding:5px 9px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02);}
+
+/* ---- mode row ---- */
+.mode-row{display:flex;justify-content:center;gap:8px;padding:10px 16px 4px;flex-wrap:wrap;}
+.mode-btn{
+  font-size:11.5px;letter-spacing:.04em;padding:7px 12px;border-radius:99px;border:1px solid var(--border);
+  background:rgba(255,255,255,.02);color:var(--muted);cursor:pointer;transition:.15s;display:flex;align-items:center;gap:6px;
+}
+.mode-btn.active{border-color:var(--cyan-dim);color:var(--cyan);background:rgba(77,216,230,.08);}
+
+/* ---- core action buttons ---- */
+.core-actions{display:flex;gap:10px;justify-content:center;padding:14px 16px 6px;flex-wrap:wrap;}
+.action-btn{
+  display:flex;align-items:center;gap:6px;font-size:12px;padding:9px 14px;border-radius:12px;
+  border:1px solid var(--border);background:rgba(255,255,255,.02);color:var(--text);cursor:pointer;transition:.15s;
+}
+.action-btn:hover{border-color:var(--cyan-dim);}
+.action-btn.primary{border-color:var(--cyan-dim);color:var(--bg);background:linear-gradient(135deg,var(--cyan),var(--violet));font-weight:600;}
+.action-btn.danger{color:var(--danger);border-color:rgba(255,84,112,.3);}
+.action-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ---- chat ---- */
+.chat-wrap{flex:1;display:flex;flex-direction:column;min-height:0;padding:10px 12px 0;}
+.chat-scroll{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:8px 4px 16px;}
+.msg{max-width:86%;padding:11px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;position:relative;animation:msgIn .25s ease;}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.msg.zuni{align-self:flex-start;background:var(--panel);border:1px solid var(--border);border-bottom-left-radius:4px;}
+.msg.user{align-self:flex-end;background:linear-gradient(135deg,rgba(77,216,230,.16),rgba(155,107,255,.16));border:1px solid var(--cyan-dim);border-bottom-right-radius:4px;}
+.msg .who{font-size:9.5px;letter-spacing:.12em;color:var(--muted);margin-bottom:4px;font-family:var(--font-display);}
+.msg .ts{font-size:9.5px;color:var(--muted2);margin-top:6px;}
+.msg pre{background:#0a0e17;border:1px solid var(--border);border-radius:10px;padding:10px;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;margin:8px 0;}
+.msg code{font-family:var(--font-mono);font-size:12.5px;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:5px;}
+.msg .copy-code{font-size:10px;color:var(--muted);cursor:pointer;float:right;}
+.msg-actions{display:flex;gap:10px;margin-top:6px;}
+.msg-actions button{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;padding:2px;}
+.msg-actions button:hover{color:var(--cyan);}
+.thinking-dots{display:inline-flex;gap:4px;align-self:flex-start;padding:11px 14px;}
+.thinking-dots span{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:dotpulse 1.2s ease-in-out infinite;}
+.thinking-dots span:nth-child(2){animation-delay:.2s;}
+.thinking-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes dotpulse{0%,80%,100%{opacity:.25;transform:scale(.8);}40%{opacity:1;transform:scale(1);}}
+
+.sources-panel{margin:2px 0 8px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--panel);}
+.sources-head{padding:8px 12px;font-size:10.5px;letter-spacing:.1em;color:var(--muted);cursor:pointer;display:flex;justify-content:space-between;}
+.sources-body{padding:0 12px 10px;display:flex;flex-direction:column;gap:6px;}
+.sources-body a{font-size:12.5px;display:block;}
+
+/* ---- input bar ---- */
+.inputbar{
+  position:sticky;bottom:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+  background:rgba(5,7,13,.85);backdrop-filter:blur(14px);border-top:1px solid var(--border);
+  display:flex;gap:8px;align-items:flex-end;
+}
+.inputbar textarea{
+  flex:1;resize:none;max-height:120px;min-height:42px;background:rgba(255,255,255,.03);
+  border:1px solid var(--border);border-radius:14px;color:var(--text);padding:11px 14px;font-size:14.5px;font-family:var(--font-body);
+}
+.inputbar textarea:focus{border-color:var(--cyan-dim);}
+.round-btn{
+  width:42px;height:42px;flex:none;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);
+  color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;
+}
+.round-btn.mic.active{background:linear-gradient(135deg,var(--cyan),var(--violet));color:#05070d;border-color:transparent;box-shadow:0 0 16px var(--cyan-dim);}
+.round-btn.send{background:linear-gradient(135deg,var(--cyan),var(--violet));color:#05070d;border-color:transparent;}
+.round-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ============ PANELS / MODALS ============ */
+.overlay{position:fixed;inset:0;background:rgba(2,3,7,.6);backdrop-filter:blur(3px);z-index:60;display:flex;align-items:flex-end;justify-content:center;}
+@media(min-width:640px){.overlay{align-items:center;}}
+.panel{
+  width:100%;max-width:520px;max-height:88dvh;overflow-y:auto;background:var(--panel-solid);
+  border:1px solid var(--border);border-radius:20px 20px 0 0;padding:20px 18px calc(24px + env(safe-area-inset-bottom,0px));
+  animation:panelIn .22s ease;
+}
+@media(min-width:640px){.panel{border-radius:20px;}}
+@keyframes panelIn{from{transform:translateY(16px);opacity:0;}to{transform:none;opacity:1;}}
+.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.panel-title{font-family:var(--font-display);font-weight:700;letter-spacing:.06em;font-size:16px;display:flex;align-items:center;gap:8px;}
+.panel-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:4px;}
+.section-title{font-size:10.5px;letter-spacing:.14em;color:var(--cyan);margin:18px 0 8px;font-family:var(--font-display);}
+.section-title:first-of-type{margin-top:4px;}
+.field{margin-bottom:10px;}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;}
+.field input[type=text],.field input[type=password],.field input[type=number],.field select,.field textarea{
+  width:100%;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;color:var(--text);
+  padding:10px 12px;font-size:13.5px;font-family:var(--font-body);
+}
+.field-row{display:flex;gap:8px;}
+.field-row .field{flex:1;}
+.switch-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);}
+.switch-row:last-child{border-bottom:none;}
+.switch-row .label{font-size:13px;}
+.switch-row .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.switch{position:relative;width:42px;height:24px;flex:none;}
+.switch input{opacity:0;width:0;height:0;}
+.switch .track{position:absolute;inset:0;background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:99px;cursor:pointer;transition:.15s;}
+.switch .thumb{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:.15s;}
+.switch input:checked + .track{background:rgba(77,216,230,.25);border-color:var(--cyan-dim);}
+.switch input:checked + .track .thumb{transform:translateX(18px);background:var(--cyan);}
+.hint{font-size:11px;color:var(--muted2);margin-top:4px;line-height:1.5;}
+.warn-box{background:rgba(255,184,77,.08);border:1px solid rgba(255,184,77,.3);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--warn);line-height:1.5;margin:10px 0;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.mini-btn{font-size:11.5px;padding:8px 12px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.02);color:var(--text);cursor:pointer;}
+.mini-btn:hover{border-color:var(--cyan-dim);}
+.diag-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.diag-row:last-child{border-bottom:none;}
+.diag-status{font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid var(--border);}
+.diag-status.ok{color:var(--success);border-color:rgba(56,242,176,.35);}
+.diag-status.bad{color:var(--danger);border-color:rgba(255,84,112,.35);}
+.diag-status.unset{color:var(--muted);}
+.diag-status.pending{color:var(--warn);}
+
+.access-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.access-item:last-child{border-bottom:none;}
+.access-ico{width:38px;height:38px;border-radius:11px;background:rgba(77,216,230,.08);border:1px solid var(--cyan-dim);display:flex;align-items:center;justify-content:center;flex:none;}
+.access-body{flex:1;}
+.access-title{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.access-desc{font-size:11.5px;color:var(--muted);margin:3px 0 8px;line-height:1.5;}
+.tag{font-size:9.5px;letter-spacing:.06em;padding:2px 7px;border-radius:99px;border:1px solid var(--border);color:var(--muted);}
+.tag.granted{color:var(--success);border-color:rgba(56,242,176,.35);}
+.tag.denied{color:var(--danger);border-color:rgba(255,84,112,.35);}
+
+/* welcome */
+.welcome-card{text-align:center;padding:6px 4px 4px;}
+.welcome-card .core-wrap{margin:0 auto 14px;width:120px;height:120px;}
+.welcome-card h1{font-family:var(--font-display);font-size:22px;margin:0 0 4px;letter-spacing:.03em;}
+.welcome-card p{color:var(--muted);font-size:13px;margin:0 0 18px;}
+.welcome-list{display:flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:20px;}
+
+/* toast */
+#toast-stack{position:fixed;top:calc(70px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center;width:100%;pointer-events:none;padding:0 14px;}
+.toast{background:var(--panel-solid);border:1px solid var(--border);border-left:3px solid var(--cyan);padding:10px 14px;border-radius:10px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:420px;animation:toastIn .2s ease;}
+.toast.err{border-left-color:var(--danger);}
+.toast.ok{border-left-color:var(--success);}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}
+
+/* particles */
+#particles{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+/* confirm modal */
+.confirm-box{max-width:340px;text-align:center;padding-top:22px;}
+.confirm-box p{font-size:13.5px;color:var(--muted);margin:8px 0 18px;}
+
+@media(max-width:389px){
+  .core-wrap{width:52vw;height:52vw;}
+  .brand-name{font-size:16px;}
+}
+</style>
+</head>
+<body>
+
+<canvas id="particles" aria-hidden="true"></canvas>
+<div id="toast-stack" aria-live="polite"></div>
+
+<div id="app">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-name">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="url(#g1)" stroke-width="1.6"/><circle cx="12" cy="12" r="4" fill="url(#g1)"/><defs><linearGradient id="g1" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#4dd8e6"/><stop offset="1" stop-color="#9b6bff"/></linearGradient></defs></svg>
+        ZUNI
+      </div>
+      <div class="brand-sub">PERSONAL AI AGENT</div>
+    </div>
+    <div class="topbar-right">
+      <div class="pill" id="netPill"><span class="dot on" id="netDot"></span><span id="netLabel">ONLINE</span></div>
+      <button class="icon-btn" id="btnAccess" aria-label="Access center" title="Access Center">🔐</button>
+      <button class="icon-btn" id="btnSettings" aria-label="Settings" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- CORE STAGE -->
+  <section class="stage">
+    <div class="core-wrap" id="coreWrap" data-state="idle" role="button" tabindex="0" aria-label="Tap to start listening">
+      <div class="core-ring ring1"></div>
+      <div class="core-ring ring2"></div>
+      <div class="core-ring ring3"></div>
+      <div class="core-orb"></div>
+    </div>
+    <div class="waveform" id="waveform" aria-hidden="true"></div>
+    <div class="core-label" id="coreLabel">ZUNI READY</div>
+    <div class="core-sub" id="coreSub">Say "Hello Zuni" or tap the core</div>
+    <div class="transcript-line" id="transcriptLine" aria-live="polite"></div>
+  </section>
+
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <div class="status-chip"><span class="dot off" id="stAI"></span>AI</div>
+    <div class="status-chip"><span class="dot off" id="stVoice"></span>VOICE</div>
+    <div class="status-chip"><span class="dot off" id="stWeb"></span>WEB</div>
+    <div class="status-chip"><span class="dot on" id="stMem"></span>MEMORY</div>
+  </div>
+
+  <!-- MODE ROW -->
+  <div class="mode-row">
+    <button class="mode-btn active" id="modeWake" data-mode="wake">🟢 Wake Word</button>
+    <button class="mode-btn" id="modeDirect" data-mode="direct">🟡 Direct Voice</button>
+    <span class="mode-btn" id="privacyChip" style="cursor:default;">⚪ Voice Paused</span>
+  </div>
+
+  <!-- CORE ACTIONS -->
+  <div class="core-actions">
+    <button class="action-btn" id="btnSpeakLast">🔊 Speak</button>
+    <button class="action-btn" id="btnStop">⏹ Stop</button>
+    <button class="action-btn" id="btnReplay">🔁 Replay</button>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-wrap">
+    <div class="chat-scroll" id="chatScroll"></div>
+  </div>
+
+  <!-- INPUT BAR -->
+  <form class="inputbar" id="inputForm">
+    <button type="button" class="round-btn mic" id="btnMic" aria-label="Toggle microphone">🎙</button>
+    <textarea id="textInput" rows="1" placeholder="Ask Zuni anything…" aria-label="Message Zuni"></textarea>
+    <button type="submit" class="round-btn send" id="btnSend" aria-label="Send">➤</button>
+  </form>
+</div>
+
+<!-- ================= WELCOME MODAL ================= -->
+<div class="overlay hidden" id="welcomeOverlay">
+  <div class="panel welcome-card">
+    <div class="core-wrap" data-state="idle"><div class="core-ring ring1"></div><div class="core-ring ring2"></div><div class="core-orb"></div></div>
+    <h1>WELCOME TO ZUNI</h1>
+    <p>Your personal AI voice agent.</p>
+    <div class="welcome-list">
+      <div class="access-item"><div class="access-ico">🎙</div><div class="access-body"><div class="access-title">Microphone</div><div class="access-desc">Required for voice commands and "Hello Zuni".</div></div></div>
+      <div class="access-item"><div class="access-ico">🔊</div><div class="access-body"><div class="access-title">Voice</div><div class="access-desc">Used for natural spoken responses.</div></div></div>
+      <div class="access-item"><div class="access-ico">🌐</div><div class="access-body"><div class="access-title">Internet</div><div class="access-desc">Required for the AI model and web search.</div></div></div>
+      <div class="access-item"><div class="access-ico">☁</div><div class="access-body"><div class="access-title">Cloud memory</div><div class="access-desc">Optional — Firebase sync across devices.</div></div></div>
+    </div>
+    <button class="action-btn primary" style="width:100%;justify-content:center;" id="btnConfigure">CONFIGURE ZUNI</button>
+  </div>
+</div>
+
+<!-- ================= ACCESS CENTER ================= -->
+<div class="overlay hidden" id="accessOverlay">
+  <div class="panel">
+    <div class="panel-head"><div class="panel-title">🔐 ACCESS CENTER</div><button class="panel-close" data-close="accessOverlay">✕</button></div>
+
+    <div class="access-item">
+      <div class="access-ico">🎙</div>
+      <div class="access-body">
+        <div class="access-title">Microphone <span class="tag" id="tagMic">ASK</span></div>
+        <div class="access-desc">Required for: Hello Zuni wake word · Voice commands · Continuous conversation.</div>
+        <button class="mini-btn" id="btnAllowMic">ALLOW MICROPHONE</button>
+      </div>
+    </div>
+    <div class="access-item">
+      <div class="access-ico">📍</div>
+      <div class="access-body">
+        <div class="access-title">Location <span class="tag" id="tagLoc">ASK</span></div>
+        <div class="access-desc">Optional. Used only when you ask things like "Where am I?" or "restaurants near me."</div>
+        <button class="mini-btn" id="btnAllowLoc">ALLOW LOCATION</button>
+      </div>
+    </div>
+    <div class="access-item">
+      <div class="access-ico">🔔</div>
+      <div class="access-body">
+        <div class="access-title">Notifications <span class="tag" id="tagNotif">ASK</span></div>
+        <div class="access-desc">Optional. Reserved for future reminders and alerts.</div>
+        <button class="mini-btn" id="btnAllowNotif">ALLOW NOTIFICATIONS</button>
+      </div>
+    </div>
+    <div class="access-item">
+      <div class="access-ico">💾</div>
+      <div class="access-body">
+        <div class="access-title">Local Storage <span class="tag granted">AVAILABLE</span></div>
+        <div class="access-desc">Automatic. Stores your settings, conversation and memory on this device.</div>
+      </div>
+    </div>
+    <div class="access-item">
+      <div class="access-ico">🔊</div>
+      <div class="access-body">
+        <div class="access-title">Audio Output <span class="tag granted">AVAILABLE</span></div>
+        <div class="access-desc">Normal browser audio playback — no separate permission required.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SETTINGS ================= -->
+<div class="overlay hidden" id="settingsOverlay">
+  <div class="panel">
+    <div class="panel-head"><div class="panel-title">⚙ SETTINGS</div><button class="panel-close" data-close="settingsOverlay">✕</button></div>
+
+    <div class="warn-box">⚠ API keys stored in this file are kept in your browser's local storage and can potentially be inspected on this device. For a public deployment, use a secure server-side proxy instead of embedding keys client-side.</div>
+
+    <div class="section-title">AI — GROQ</div>
+    <div class="field"><label for="cfgGroqKey">Groq API Key</label><input type="password" id="cfgGroqKey" placeholder="gsk_••••••••"></div>
+    <div class="field"><label for="cfgGroqModel">Model</label>
+      <select id="cfgGroqModel">
+        <option value="openai/gpt-oss-120b">openai/gpt-oss-120b</option>
+        <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
+        <option value="qwen/qwen3.8-27b">qwen/qwen3.8-27b</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="cfgTemp">Temperature</label><input type="number" id="cfgTemp" min="0" max="2" step="0.1" value="0.7"></div>
+      <div class="field"><label for="cfgMaxTok">Max Tokens</label><input type="number" id="cfgMaxTok" min="64" max="4096" step="64" value="700"></div>
+    </div>
+
+    <div class="section-title">VOICE — ELEVENLABS</div>
+    <div class="switch-row"><div><div class="label">Enable Voice</div></div><label class="switch"><input type="checkbox" id="cfgEnableVoice" checked><span class="track"><span class="thumb"></span></span></label></div>
+    <div class="field"><label for="cfgElevenKey">ElevenLabs API Key</label><input type="password" id="cfgElevenKey" placeholder="••••••••"></div>
+    <div class="field"><label for="cfgVoiceId">Voice ID</label><input type="text" id="cfgVoiceId" placeholder="e.g. 21m00Tcm4TlvDq8ikWAM"></div>
+    <div class="field"><label for="cfgPreset">Voice Preset</label>
+      <select id="cfgPreset">
+        <option value="jarvis">JARVIS — Natural &amp; Confident</option>
+        <option value="warm">Warm — Friendly &amp; Conversational</option>
+        <option value="cinematic">Cinematic — Deep &amp; Authoritative</option>
+        <option value="calm">Calm — Soft &amp; Relaxed</option>
+        <option value="energetic">Energetic — Bright &amp; Enthusiastic</option>
+      </select>
+    </div>
+    <div class="field"><label for="cfgSpeed">Voice Speed (<span id="speedVal">0.98</span>x)</label><input type="range" id="cfgSpeed" min="0.7" max="1.2" step="0.02" value="0.98" style="width:100%;"></div>
+
+    <div class="section-title">SEARCH — SEARCHAPI</div>
+    <div class="switch-row"><div><div class="label">Enable Web Search</div></div><label class="switch"><input type="checkbox" id="cfgEnableSearch" checked><span class="track"><span class="thumb"></span></span></label></div>
+    <div class="field"><label for="cfgSearchKey">SearchAPI Key</label><input type="password" id="cfgSearchKey" placeholder="••••••••"></div>
+
+    <div class="section-title">FIREBASE — CLOUD MEMORY (OPTIONAL)</div>
+    <div class="field"><label for="cfgFbKey">Firebase Web API Key</label><input type="password" id="cfgFbKey" placeholder="AIza••••••••"></div>
+    <div class="field"><label for="cfgFbProject">Firebase Project ID</label><input type="text" id="cfgFbProject" placeholder="my-project-id"></div>
+    <div class="hint">Cloud memory uses the Firestore &amp; Identity Toolkit REST APIs directly — no SDK download required. Leave blank to stay in Local Memory Mode.</div>
+    <div class="btn-row" id="fbAuthRow">
+      <input type="text" id="fbEmail" placeholder="email" style="flex:1;min-width:120px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:9px;color:var(--text);padding:8px 10px;font-size:12.5px;">
+      <input type="password" id="fbPass" placeholder="password" style="flex:1;min-width:120px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:9px;color:var(--text);padding:8px 10px;font-size:12.5px;">
+    </div>
+    <div class="btn-row">
+      <button type="button" class="mini-btn" id="btnFbSignup">Sign Up</button>
+      <button type="button" class="mini-btn" id="btnFbLogin">Login</button>
+      <button type="button" class="mini-btn" id="btnFbLogout">Logout</button>
+      <span class="tag" id="tagFbAuth">● Logged out</span>
+    </div>
+
+    <div class="section-title">AGENT</div>
+    <div class="field"><label for="cfgWakeWord">Wake Word</label><input type="text" id="cfgWakeWord" value="hello zuni"></div>
+    <div class="switch-row"><div><div class="label">Continuous Listening</div><div class="sub">Return to listening automatically after speaking</div></div><label class="switch"><input type="checkbox" id="cfgContinuous" checked><span class="track"><span class="thumb"></span></span></label></div>
+    <div class="switch-row"><div><div class="label">Auto Speak Replies</div></div><label class="switch"><input type="checkbox" id="cfgAutoSpeak" checked><span class="track"><span class="thumb"></span></span></label></div>
+
+    <div class="section-title">APPEARANCE</div>
+    <div class="switch-row"><div><div class="label">Animations</div></div><label class="switch"><input type="checkbox" id="cfgAnimations" checked><span class="track"><span class="thumb"></span></span></label></div>
+    <div class="switch-row"><div><div class="label">Compact Mode</div></div><label class="switch"><input type="checkbox" id="cfgCompact"><span class="track"><span class="thumb"></span></span></label></div>
+    <div class="switch-row"><div><div class="label">Developer / Debug Mode</div><div class="sub">Show request status, HTTP codes, recognition state</div></div><label class="switch"><input type="checkbox" id="cfgDebug"><span class="track"><span class="thumb"></span></span></label></div>
+
+    <div id="debugPanel" class="hint hidden" style="font-family:var(--font-mono);white-space:pre-wrap;border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:8px;"></div>
+
+    <button class="action-btn primary" style="width:100%;justify-content:center;margin-top:16px;" id="btnSaveConfig">SAVE CONFIGURATION</button>
+
+    <div class="section-title">DIAGNOSTICS</div>
+    <div class="diag-row"><span>Groq</span><span class="diag-status unset" id="diagGroq">UNTESTED</span></div>
+    <div class="diag-row"><span>ElevenLabs</span><span class="diag-status unset" id="diagEleven">UNTESTED</span></div>
+    <div class="diag-row"><span>SearchAPI</span><span class="diag-status unset" id="diagSearch">UNTESTED</span></div>
+    <div class="diag-row"><span>Firebase</span><span class="diag-status unset" id="diagFirebase">UNTESTED</span></div>
+    <div class="diag-row"><span>Microphone</span><span class="diag-status unset" id="diagMic">UNTESTED</span></div>
+    <div class="btn-row">
+      <button class="mini-btn" id="testGroq">TEST GROQ</button>
+      <button class="mini-btn" id="testEleven">TEST ELEVENLABS</button>
+      <button class="mini-btn" id="testSearch">TEST SEARCH</button>
+      <button class="mini-btn" id="testFirebase">TEST FIREBASE</button>
+      <button class="mini-btn" id="testMic">TEST MICROPHONE</button>
+      <button class="mini-btn" id="testAll">TEST ALL SERVICES</button>
+    </div>
+
+    <div class="section-title">DATA</div>
+    <div class="btn-row">
+      <button class="mini-btn" id="btnExportTxt">Export TXT</button>
+      <button class="mini-btn" id="btnExportJson">Export JSON</button>
+      <button class="mini-btn" id="btnImportJson">Import JSON</button>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+    </div>
+    <div class="btn-row">
+      <button class="mini-btn" id="btnClearConvo">Clear local conversation</button>
+      <button class="mini-btn" id="btnClearSettings">Clear local settings</button>
+      <button class="mini-btn" id="btnResetZuni" style="color:var(--danger);">Reset Zuni</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CONFIRM MODAL ================= -->
+<div class="overlay hidden" id="confirmOverlay">
+  <div class="panel confirm-box">
+    <div class="panel-title" id="confirmTitle" style="justify-content:center;">Are you sure?</div>
+    <p id="confirmMsg">This action cannot be undone.</p>
+    <div class="btn-row" style="justify-content:center;">
+      <button class="mini-btn" id="confirmCancel">Cancel</button>
+      <button class="action-btn danger" id="confirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= WEB SOURCES TEMPLATE (JS builds inline) ================= -->
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   0. CONFIG + STORAGE
+   ============================================================ */
+const DEFAULT_CONFIG = {
+  groqKey:"", groqModel:"openai/gpt-oss-120b", temperature:0.7, maxTokens:700,
+  enableVoice:true, elevenKey:"", elevenVoiceId:"", voicePreset:"jarvis", voiceSpeed:0.98,
+  enableSearch:true, searchKey:"",
+  fbKey:"", fbProject:"",
+  wakeWord:"hello zuni", continuous:true, autoSpeak:true, wakeMode:true,
+  animations:true, compact:false, debug:false,
+  firstRunDone:false
+};
+let CONFIG = loadConfig();
+function loadConfig(){
+  try{
+    const raw = localStorage.getItem("zuni_config");
+    if(!raw) return {...DEFAULT_CONFIG};
+    return {...DEFAULT_CONFIG, ...JSON.parse(raw)};
+  }catch(e){ return {...DEFAULT_CONFIG}; }
+}
+function saveConfig(){
+  localStorage.setItem("zuni_config", JSON.stringify(CONFIG));
+}
+
+let MEMORY = loadJSON("zuni_memory", []);
+let CONVO = loadJSON("zuni_conversation", []);
+function loadJSON(key, fallback){
+  try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+  catch(e){ return fallback; }
+}
+function saveMemory(){ localStorage.setItem("zuni_memory", JSON.stringify(MEMORY)); }
+function saveConvo(){ localStorage.setItem("zuni_conversation", JSON.stringify(CONVO.slice(-60))); }
+
+let fbIdToken = null; // session only, never persisted
+
+/* ============================================================
+   1. DOM SHORTCUTS
+   ============================================================ */
+const $ = (id)=>document.getElementById(id);
+const coreWrap=$("coreWrap"), coreLabel=$("coreLabel"), coreSub=$("coreSub"), transcriptLine=$("transcriptLine");
+const chatScroll=$("chatScroll"), textInput=$("textInput"), btnMic=$("btnMic"), btnSend=$("btnSend");
+const netDot=$("netDot"), netLabel=$("netLabel");
+const stAI=$("stAI"), stVoice=$("stVoice"), stWeb=$("stWeb"), stMem=$("stMem");
+
+/* ============================================================
+   2. TOAST
+   ============================================================ */
+function toast(msg, type){
+  const el=document.createElement("div");
+  el.className="toast"+(type?" "+type:"");
+  el.textContent=msg;
+  $("toast-stack").appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transition="opacity .3s"; setTimeout(()=>el.remove(),300); }, 3400);
+}
+
+/* ============================================================
+   3. STATE MACHINE
+   ============================================================ */
+const STATES=["idle","listening","wake_detected","thinking","searching","speaking","error"];
+let currentState="idle";
+function setState(state, label, sub){
+  currentState=state;
+  coreWrap.dataset.state = state==="wake_detected"?"listening":(state==="searching"?"thinking":state);
+  const labels={
+    idle:"ZUNI READY", listening:"LISTENING", wake_detected:"YES?", thinking:"THINKING",
+    searching:"SEARCHING", speaking:"SPEAKING", error:"SYSTEM ALERT"
+  };
+  coreLabel.textContent = label || labels[state] || state.toUpperCase();
+  if(sub!==undefined) coreSub.textContent=sub;
+  renderWaveform(state==="listening"||state==="speaking");
+}
+let waveBuilt=false;
+function renderWaveform(active){
+  const wf=$("waveform");
+  if(!waveBuilt){ for(let i=0;i<20;i++){ const s=document.createElement("span"); s.style.height=(6+Math.random()*10)+"px"; wf.appendChild(s);} waveBuilt=true; }
+  wf.style.opacity = active ? "1" : ".25";
+}
+
+/* ============================================================
+   4. TEXT SANITIZATION + LIGHT MARKDOWN RENDER
+   ============================================================ */
+function escapeHTML(str){
+  return str.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function renderMarkdownSafe(raw){
+  // escape first — nothing from the model or web is ever trusted as raw HTML
+  let s = escapeHTML(raw);
+  // code fences
+  s = s.replace(/```([a-zA-Z0-9]*)\n([\s\S]*?)```/g, (m,lang,code)=>{
+    return `<pre><span class="copy-code" data-code="${encodeURIComponent(code.trim())}">COPY</span><code>${code}</code></pre>`;
+  });
+  s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  s = s.replace(/\n/g, "<br>");
+  return s;
+}
+
+/* ============================================================
+   5. CHAT RENDERING
+   ============================================================ */
+function fmtTime(ts){
+  const d=new Date(ts);
+  return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+}
+function addMessage(role, text, opts){
+  opts = opts || {};
+  const rec = {role, text, ts: Date.now(), sources: opts.sources||null};
+  CONVO.push(rec); saveConvo();
+  renderMessage(rec);
+  return rec;
+}
+function renderMessage(rec){
+  const wrap=document.createElement("div");
+  wrap.className="msg "+(rec.role==="user"?"user":"zuni");
+  const who=document.createElement("div"); who.className="who"; who.textContent=rec.role==="user"?"YOU":"ZUNI";
+  wrap.appendChild(who);
+
+  if(rec.sources && rec.sources.length){
+    const sp=document.createElement("div"); sp.className="sources-panel";
+    sp.innerHTML=`<div class="sources-head">WEB SOURCES <span>▾</span></div><div class="sources-body hidden"></div>`;
+    const body=sp.querySelector(".sources-body");
+    rec.sources.forEach((s,i)=>{ const a=document.createElement("a"); a.href=s.link; a.target="_blank"; a.rel="noopener noreferrer"; a.textContent=`${i+1}. ${s.title}`; body.appendChild(a); });
+    sp.querySelector(".sources-head").addEventListener("click", ()=>body.classList.toggle("hidden"));
+    wrap.appendChild(sp);
+  }
+
+  const body=document.createElement("div"); body.innerHTML=renderMarkdownSafe(rec.text);
+  wrap.appendChild(body);
+
+  const ts=document.createElement("div"); ts.className="ts"; ts.textContent=fmtTime(rec.ts);
+  wrap.appendChild(ts);
+
+  if(rec.role!=="user"){
+    const actions=document.createElement("div"); actions.className="msg-actions";
+    actions.innerHTML=`<button class="act-speak">🔊 Speak</button><button class="act-copy">📋 Copy</button>`;
+    actions.querySelector(".act-speak").addEventListener("click", ()=>speak(rec.text));
+    actions.querySelector(".act-copy").addEventListener("click", ()=>{ navigator.clipboard?.writeText(rec.text); toast("Copied to clipboard.","ok"); });
+    wrap.appendChild(actions);
+  }
+
+  body.querySelectorAll(".copy-code").forEach(btn=>{
+    btn.addEventListener("click", ()=>{ navigator.clipboard?.writeText(decodeURIComponent(btn.dataset.code)); toast("Code copied.","ok"); });
+  });
+
+  chatScroll.appendChild(wrap);
+  chatScroll.scrollTop=chatScroll.scrollHeight;
+}
+function renderAllHistory(){
+  chatScroll.innerHTML="";
+  CONVO.forEach(renderMessage);
+  if(CONVO.length===0){
+    addMessage("assistant","Hello. I'm Zuni. Your personal AI voice agent is ready. You can say \"Hello Zuni\" whenever you want my attention.");
+  }
+}
+let thinkingEl=null;
+function showThinking(){
+  thinkingEl=document.createElement("div");
+  thinkingEl.className="thinking-dots";
+  thinkingEl.innerHTML="<span></span><span></span><span></span>";
+  chatScroll.appendChild(thinkingEl);
+  chatScroll.scrollTop=chatScroll.scrollHeight;
+}
+function hideThinking(){ if(thinkingEl){ thinkingEl.remove(); thinkingEl=null; } }
+
+/* ============================================================
+   6. STATUS INDICATORS
+   ============================================================ */
+function refreshStatusBar(){
+  setDot(stAI, CONFIG.groqKey ? "on" : "off");
+  setDot(stVoice, CONFIG.enableVoice && (CONFIG.elevenKey||true) ? "on" : "off");
+  setDot(stWeb, CONFIG.enableSearch && CONFIG.searchKey ? "on" : "warn");
+  setDot(stMem, "on");
+}
+function setDot(el, cls){ el.className="dot "+cls; }
+function updateNetPill(){
+  const online=navigator.onLine;
+  netDot.className="dot "+(online?"on":"off");
+  netLabel.textContent=online?"ONLINE":"OFFLINE";
+}
+window.addEventListener("online", ()=>{updateNetPill(); toast("Back online.","ok");});
+window.addEventListener("offline", ()=>{updateNetPill(); toast("Network connection is unavailable.","err"); speakOrDisplayError("Network connection is unavailable.");});
+
+/* ============================================================
+   7. SPEECH RECOGNITION (Web Speech API)
+   ============================================================ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition=null, listening=false, recognitionSupported=!!SR, restartTimer=null, restartAttempts=0, sessionActive=false;
+let interimBuf="";
+
+function initRecognition(){
+  if(!recognitionSupported) return;
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = "en-US";
+
+  recognition.onstart = ()=>{
+    restartAttempts=0;
+    listening=true;
+    updateMicUI(true);
+    if(currentState!=="thinking" && currentState!=="searching" && currentState!=="speaking"){
+      setState("listening", null, "Listening…");
+    }
+  };
+  recognition.onaudiostart = ()=>{};
+  recognition.onresult = (e)=>{
+    let interim="", final="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal) final+=t; else interim+=t;
+    }
+    if(interim){ transcriptLine.innerHTML = "Hearing: <b>"+escapeHTML(interim)+"</b>"; }
+    if(final){ handleRecognizedText(final.trim()); }
+  };
+  recognition.onerror = (e)=>{
+    const map={
+      "not-allowed":"Microphone permission is blocked. Open your browser site permissions and allow microphone access.",
+      "service-not-allowed":"Microphone permission is blocked. Open your browser site permissions and allow microphone access.",
+      "audio-capture":"No microphone was found. Please connect a microphone and try again.",
+      "network":"A network error interrupted voice recognition.",
+      "aborted":"", // silent, usually intentional
+      "no-speech":"" // silent, will auto-restart
+    };
+    const msg = map[e.error];
+    if(msg){ setState("error", "SYSTEM ALERT", msg); toast(msg,"err"); }
+    if(CONFIG.debug) logDebug("recognition error: "+e.error);
+  };
+  recognition.onend = ()=>{
+    listening=false;
+    updateMicUI(false);
+    if(sessionActive){
+      restartAttempts++;
+      const delay = Math.min(300*restartAttempts, 3000);
+      clearTimeout(restartTimer);
+      restartTimer=setTimeout(()=>{ try{ recognition.start(); }catch(e){} }, delay);
+    } else {
+      setState("idle");
+    }
+  };
+}
+function updateMicUI(active){
+  btnMic.classList.toggle("active", active);
+  $("privacyChip").textContent = active ? "🎙 MICROPHONE ACTIVE" : "⚪ MICROPHONE OFF";
+}
+function startListening(){
+  if(!recognitionSupported){ toast("Voice recognition is not supported in this browser. Please use a supported browser such as Chrome.","err"); return; }
+  sessionActive=true;
+  try{ recognition.start(); }catch(e){ /* already started */ }
+  setState("listening");
+}
+function stopListening(){
+  sessionActive=false;
+  clearTimeout(restartTimer);
+  if(recognition){ try{ recognition.stop(); }catch(e){} }
+  updateMicUI(false);
+  setState("idle");
+}
+btnMic.addEventListener("click", ()=>{ sessionActive ? stopListening() : startListening(); });
+coreWrap.addEventListener("click", ()=>{ sessionActive ? stopListening() : startListening(); });
+coreWrap.addEventListener("keydown", (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); coreWrap.click(); } });
+
+/* ---- wake word normalization & detection ---- */
+function normalize(s){
+  return s.toLowerCase().replace(/[.,!?;:]/g,"").replace(/\s+/g," ").trim();
+}
+const WAKE_VARIANTS=["hello zuni","hey zuni","hi zuni","hello zunie","hey zunie","hi zunie"];
+function detectWake(text){
+  const n=normalize(text);
+  const configured=normalize(CONFIG.wakeWord||"hello zuni");
+  const variants=[...new Set([configured, ...WAKE_VARIANTS])];
+  for(const v of variants){
+    if(n===v || n.startsWith(v+" ") || n.includes(v)) return v;
+  }
+  return null;
+}
+
+let awaitingCommand=false;
+function handleRecognizedText(text){
+  transcriptLine.innerHTML = 'Final: "<b>'+escapeHTML(text)+'</b>"';
+
+  // barge-in: if Zuni is speaking, any final speech interrupts it
+  if(currentState==="speaking"){
+    stopAudio();
+  }
+
+  if(CONFIG.wakeMode && !awaitingCommand){
+    const wake=detectWake(text);
+    if(wake){
+      const remainder = normalize(text).slice(wake.length).trim();
+      setState("wake_detected","YES?","Yes, I'm listening.");
+      speak("Yes, I'm listening.", {silent:true});
+      if(remainder.length>2){
+        // command was included in the same utterance
+        processCommand(remainder);
+      } else {
+        awaitingCommand=true;
+        setTimeout(()=>{ if(awaitingCommand){ awaitingCommand=false; setState("listening"); } }, 8000);
+      }
+      return;
+    }
+    return; // wake mode: ignore anything else
+  }
+
+  if(awaitingCommand) awaitingCommand=false;
+  processCommand(text);
+}
+
+/* ============================================================
+   8. TTS — HUMANIZE + ELEVENLABS + FALLBACK
+   ============================================================ */
+function humanizeText(raw){
+  let t = raw;
+  // strip code blocks entirely — spoken as a short notice instead
+  const hadCode = /```/.test(t);
+  t = t.replace(/```[a-zA-Z0-9]*\n[\s\S]*?```/g, " ");
+  t = t.replace(/`([^`]+)`/g, "$1");
+  // strip markdown formatting
+  t = t.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1");
+  t = t.replace(/^#+\s*/gm, "");
+  t = t.replace(/^[-*]\s+/gm, "");
+  t = t.replace(/^\d+\.\s+/gm, (m)=> m.replace(".", ""));
+  // URLs -> "the website"
+  t = t.replace(/https?:\/\/[^\s)]+/g, "the website");
+  // symbols
+  t = t.replace(/&/g," and ").replace(/@/g," at ").replace(/%/g," percent ")
+       .replace(/\+/g," plus ").replace(/=/g," equals ")
+       .replace(/\\/g," backslash ").replace(/(?<!:)\/(?!\/)/g," slash ");
+  t = t.replace(/\s{2,}/g," ").trim();
+  if(hadCode) t += " I've included the code in the conversation.";
+  return t;
+}
+const PRESETS={
+  jarvis:{stability:.55,similarity_boost:.8,style:.35,speed:1.0,speaker_boost:true},
+  warm:{stability:.45,similarity_boost:.75,style:.5,speed:1.0,speaker_boost:true},
+  cinematic:{stability:.7,similarity_boost:.85,style:.2,speed:.92,speaker_boost:true},
+  calm:{stability:.75,similarity_boost:.7,style:.15,speed:.95,speaker_boost:false},
+  energetic:{stability:.35,similarity_boost:.7,style:.65,speed:1.08,speaker_boost:true},
+};
+let currentAudio=null;
+let lastResponseText="";
+
+async function speak(text, opts){
+  opts=opts||{};
+  if(!opts.silent) lastResponseText=text;
+  if(!CONFIG.enableVoice) return;
+  stopAudio(true);
+  const clean=humanizeText(text);
+  setState("speaking");
+  if(CONFIG.elevenKey && CONFIG.elevenVoiceId){
+    try{
+      const preset=PRESETS[CONFIG.voicePreset]||PRESETS.jarvis;
+      const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(CONFIG.elevenVoiceId)}`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "xi-api-key":CONFIG.elevenKey, "Accept":"audio/mpeg" },
+        body:JSON.stringify({
+          text: clean,
+          model_id:"eleven_multilingual_v2",
+          voice_settings:{ stability:preset.stability, similarity_boost:preset.similarity_boost, style:preset.style, use_speaker_boost:preset.speaker_boost }
+        })
+      });
+      if(!res.ok){
+        const errMsg = await elevenErrorMessage(res);
+        throw new Error(errMsg);
+      }
+      const blob=await res.blob();
+      const url=URL.createObjectURL(blob);
+      const audio=new Audio(url);
+      audio.playbackRate = CONFIG.voiceSpeed || preset.speed || 1;
+      currentAudio=audio;
+      audio.onended=()=>{ URL.revokeObjectURL(url); onSpeakEnd(); };
+      audio.onerror=()=>{ onSpeakEnd(); };
+      await audio.play().catch(()=>{ toast("Tap once to enable voice audio.","err"); onSpeakEnd(); });
+      return;
+    }catch(err){
+      toast("ElevenLabs unavailable — using browser voice. ("+err.message+")","err");
+      if(CONFIG.debug) logDebug("ElevenLabs error: "+err.message);
+      browserSpeak(clean);
+      return;
+    }
+  }
+  browserSpeak(clean);
+}
+async function elevenErrorMessage(res){
+  let body=null;
+  try{ body=await res.json(); }catch(e){}
+  if(res.status===401) return "ElevenLabs authentication failed. Please check your API key.";
+  if(res.status===403) return "ElevenLabs permission denied for this key or voice.";
+  if(res.status===429) return "ElevenLabs rate limit reached. Please try again shortly.";
+  return "ElevenLabs could not generate speech (HTTP "+res.status+"). Please verify your API key and Voice ID.";
+}
+function browserSpeak(text){
+  if(!("speechSynthesis" in window)){ onSpeakEnd(); return; }
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate = CONFIG.voiceSpeed || 1;
+  u.onend=onSpeakEnd;
+  u.onerror=onSpeakEnd;
+  currentAudio={ isSynth:true, utter:u };
+  window.speechSynthesis.speak(u);
+}
+function onSpeakEnd(){
+  currentAudio=null;
+  if(sessionActive && CONFIG.continuous){
+    setState("listening");
+  } else {
+    setState("idle");
+  }
+}
+function stopAudio(silent){
+  if(currentAudio){
+    if(currentAudio.isSynth){ window.speechSynthesis.cancel(); }
+    else { try{ currentAudio.pause(); }catch(e){} }
+    currentAudio=null;
+  }
+  if(!silent) setState(sessionActive?"listening":"idle");
+}
+$("btnStop").addEventListener("click", ()=>{ stopAudio(); });
+$("btnSpeakLast").addEventListener("click", ()=>{ if(lastResponseText) speak(lastResponseText); else toast("Nothing to speak yet."); });
+$("btnReplay").addEventListener("click", ()=>{ if(lastResponseText) speak(lastResponseText); else toast("Nothing to replay yet."); });
+
+/* ============================================================
+   9. GROQ AI
+   ============================================================ */
+const SYSTEM_PROMPT = `You are Zuni, a highly capable personal AI voice agent.
+You communicate naturally like an intelligent human assistant.
+You are concise for simple questions and detailed for complex requests.
+You are calm, confident, friendly and professional — never robotic.
+You are designed for spoken conversation, so avoid unnecessary markdown when it will be spoken aloud.
+When the user asks you to perform an action, briefly explain what you are doing.
+When web search results are provided below, clearly rely on them for current information and distinguish them from your general knowledge.
+Never pretend you performed an action you did not actually perform. Never claim to access hardware or services that are unavailable.
+If a tool fails, explain the failure clearly and suggest a next step.
+You are Zuni, not ChatGPT.`;
+
+function buildContextMessages(userText, searchContext){
+  const recent = CONVO.slice(-12).map(m=>({role: m.role==="user"?"user":"assistant", content:m.text}));
+  let sys = SYSTEM_PROMPT + `\nCurrent date/time: ${new Date().toString()}.`;
+  if(MEMORY.length){
+    sys += `\nThings the user has asked you to remember:\n` + MEMORY.map(m=>"- "+m.text).join("\n");
+  }
+  if(searchContext){
+    sys += `\n\nCurrent web search results (use these for up-to-date facts):\n` + searchContext;
+  }
+  return [{role:"system", content:sys}, ...recent, {role:"user", content:userText}];
+}
+
+async function callGroq(messages){
+  if(!CONFIG.groqKey) throw new Error("Groq API key is not configured. Open Settings to add it.");
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+CONFIG.groqKey },
+    body: JSON.stringify({ model: CONFIG.groqModel, temperature: Number(CONFIG.temperature), max_tokens: Number(CONFIG.maxTokens), messages })
+  });
+  if(!res.ok){ throw new Error(httpErrorMessage("Groq", res.status)); }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || "I didn't get a usable response that time.";
+}
+function httpErrorMessage(service, status){
+  const map={
+    400:"received a bad request.", 401:"authentication failed. Please check your API key.",
+    403:"denied permission for this request.", 404:"could not find the requested resource.",
+    408:"timed out.", 429:"rate limit or quota was reached. Please try again shortly.",
+    500:"had an internal server error.", 502:"is temporarily unreachable (bad gateway).", 503:"is temporarily unavailable."
+  };
+  return `${service} ${map[status] || "returned HTTP "+status+"."}`;
+}
+
+/* ============================================================
+   10. SEARCHAPI WEB SEARCH
+   ============================================================ */
+async function webSearch(query){
+  if(!CONFIG.searchKey) throw new Error("SearchAPI key is not configured. Open Settings to add it.");
+  const url = `https://www.searchapi.io/api/v1/search?engine=google&q=${encodeURIComponent(query)}&api_key=${encodeURIComponent(CONFIG.searchKey)}`;
+  const res = await fetch(url);
+  if(!res.ok){ throw new Error(httpErrorMessage("SearchAPI", res.status)); }
+  const data = await res.json();
+  const results = (data.organic_results||[]).slice(0,4).map(r=>({title:r.title, link:r.link, snippet:r.snippet||""}));
+  return results;
+}
+function needsSearch(text){
+  const t=text.toLowerCase();
+  return /\b(latest|today|current|currently|now|this week|this year|recent|news|weather|score|price|stock|happening)\b/.test(t);
+}
+
+/* ============================================================
+   11. LOCATION / TIME
+   ============================================================ */
+function speakTime(){
+  const d=new Date();
+  const h=d.getHours()%12||12, m=d.getMinutes(), ampm=d.getHours()>=12?"PM":"AM";
+  const roughMin = m===0?"":(m<10?" oh "+m:" "+m);
+  const phrase = `It's around ${h}${roughMin} ${ampm}.`;
+  respondDirect(phrase);
+}
+function handleLocationRequest(){
+  if(!navigator.geolocation){ respondDirect("Location isn't available in this browser."); return; }
+  setState("thinking",null,"Locating…");
+  navigator.geolocation.getCurrentPosition((pos)=>{
+    const {latitude, longitude} = pos.coords;
+    respondDirect(`I can see your approximate coordinates: ${latitude.toFixed(3)}, ${longitude.toFixed(3)}.`);
+  }, (err)=>{
+    respondDirect("Location access hasn't been granted.");
+  }, {timeout:8000});
+}
+
+/* ============================================================
+   12. COMMAND ROUTER
+   ============================================================ */
+async function processCommand(text){
+  if(!text || !text.trim()) return;
+  addMessage("user", text);
+  const t = text.toLowerCase().trim();
+
+  if(/^(stop|stop speaking|be quiet|cancel|shut up)\.?$/.test(t)){ stopAudio(); return; }
+  if(/what('?s| is) the time|what time is it/.test(t)){ speakTime(); return; }
+  if(/where am i|my location|find.*near me/.test(t)){ handleLocationRequest(); return; }
+  if(/^remember that (.+)/i.test(text)){ const m=text.match(/^remember that (.+)/i); MEMORY.push({text:m[1].trim(), ts:Date.now()}); saveMemory(); respondDirect("Got it. I'll remember that."); return; }
+  if(/what do you remember/.test(t)){
+    if(!MEMORY.length) respondDirect("I don't have anything stored in memory yet.");
+    else respondDirect("Here's what I remember: " + MEMORY.map(m=>m.text).join("; ") + ".");
+    return;
+  }
+  if(/^forget (.+)/i.test(text)){ const m=text.match(/^forget (.+)/i); const q=m[1].toLowerCase(); MEMORY=MEMORY.filter(x=>!x.text.toLowerCase().includes(q)); saveMemory(); respondDirect("Okay, I've forgotten that."); return; }
+  if(/clear my memory/.test(t)){ MEMORY=[]; saveMemory(); respondDirect("Your memory has been cleared."); return; }
+  if(/open settings/.test(t)){ openPanel("settingsOverlay"); respondDirect("Opening settings.", {noSpeak:true}); return; }
+  if(/enable direct mode/.test(t)){ setMode("direct"); respondDirect("Direct voice mode enabled."); return; }
+  if(/enable wake word/.test(t)){ setMode("wake"); respondDirect("Wake word mode enabled."); return; }
+  if(/repeat that|speak again/.test(t)){ if(lastResponseText) speak(lastResponseText); return; }
+  if(/^search the web for (.+)/i.test(text)){ const m=text.match(/^search the web for (.+)/i); await conversationalTurn(m[1].trim(), true); return; }
+
+  await conversationalTurn(text, needsSearch(text));
+}
+function respondDirect(text, opts){
+  opts=opts||{};
+  addMessage("assistant", text);
+  if(!opts.noSpeak && CONFIG.autoSpeak) speak(text); else onSpeakEnd();
+}
+async function conversationalTurn(userText, forceSearch){
+  let searchContext=null, sources=null;
+  try{
+    if(forceSearch && CONFIG.enableSearch){
+      setState("searching",null,"Searching the web…");
+      const results = await webSearch(userText);
+      if(results.length){
+        sources=results;
+        searchContext = results.map((r,i)=>`[${i+1}] ${r.title} — ${r.snippet} (${r.link})`).join("\n");
+      }
+    }
+  }catch(err){
+    toast(err.message,"err");
+    if(CONFIG.debug) logDebug("Search error: "+err.message);
+  }
+  setState("thinking");
+  showThinking();
+  try{
+    const messages = buildContextMessages(userText, searchContext);
+    const reply = await callGroq(messages);
+    hideThinking();
+    const rec = addMessage("assistant", reply, {sources});
+    lastResponseText = reply;
+    if(CONFIG.autoSpeak) speak(reply); else onSpeakEnd();
+  }catch(err){
+    hideThinking();
+    setState("error","SYSTEM ALERT", err.message);
+    addMessage("assistant", err.message);
+    toast(err.message,"err");
+    if(CONFIG.debug) logDebug("Groq error: "+err.message);
+    setTimeout(()=>setState(sessionActive?"listening":"idle"), 2500);
+  }
+}
+
+/* ============================================================
+   13. TEXT INPUT / FORM
+   ============================================================ */
+$("inputForm").addEventListener("submit",(e)=>{
+  e.preventDefault();
+  const val=textInput.value.trim();
+  if(!val) return;
+  textInput.value="";
+  textInput.style.height="42px";
+  processCommand(val);
+});
+textInput.addEventListener("input",()=>{ textInput.style.height="42px"; textInput.style.height=Math.min(textInput.scrollHeight,120)+"px"; });
+textInput.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); $("inputForm").requestSubmit(); } });
+
+/* ============================================================
+   14. MODE TOGGLES
+   ============================================================ */
+function setMode(mode){
+  CONFIG.wakeMode = mode==="wake";
+  saveConfig();
+  $("modeWake").classList.toggle("active", CONFIG.wakeMode);
+  $("modeDirect").classList.toggle("active", !CONFIG.wakeMode);
+}
+$("modeWake").addEventListener("click", ()=>setMode("wake"));
+$("modeDirect").addEventListener("click", ()=>setMode("direct"));
+
+/* In direct mode, any final speech is routed straight to the command processor
+   instead of requiring the wake phrase — handled inside handleRecognizedText. */
+
+/* ============================================================
+   15. PANELS / MODALS
+   ============================================================ */
+function openPanel(id){ $(id).classList.remove("hidden"); }
+function closePanel(id){ $(id).classList.add("hidden"); }
+document.querySelectorAll("[data-close]").forEach(btn=>{
+  btn.addEventListener("click", ()=>closePanel(btn.dataset.close));
+});
+document.querySelectorAll(".overlay").forEach(ov=>{
+  ov.addEventListener("click",(e)=>{ if(e.target===ov && ov.id!=="welcomeOverlay") closePanel(ov.id); });
+});
+$("btnAccess").addEventListener("click", ()=>{ openPanel("accessOverlay"); refreshAccessTags(); });
+$("btnSettings").addEventListener("click", ()=>{ openPanel("settingsOverlay"); });
+$("btnConfigure").addEventListener("click", ()=>{ closePanel("welcomeOverlay"); openPanel("accessOverlay"); refreshAccessTags(); });
+
+function confirmDialog(title, msg, onOk){
+  $("confirmTitle").textContent=title; $("confirmMsg").textContent=msg;
+  openPanel("confirmOverlay");
+  const okBtn=$("confirmOk"), cancelBtn=$("confirmCancel");
+  const cleanup=()=>{ okBtn.removeEventListener("click",okHandler); cancelBtn.removeEventListener("click",cancelHandler); closePanel("confirmOverlay"); };
+  function okHandler(){ cleanup(); onOk(); }
+  function cancelHandler(){ cleanup(); }
+  okBtn.addEventListener("click", okHandler);
+  cancelBtn.addEventListener("click", cancelHandler);
+}
+
+/* ============================================================
+   16. ACCESS CENTER (permissions)
+   ============================================================ */
+async function refreshAccessTags(){
+  setTag("tagMic", await queryPermission("microphone"));
+  setTag("tagLoc", await queryPermission("geolocation"));
+  setTag("tagNotif", ("Notification" in window) ? Notification.permission : "unavailable");
+}
+async function queryPermission(name){
+  if(!navigator.permissions){ return "unavailable"; }
+  try{ const st = await navigator.permissions.query({name}); return st.state; }
+  catch(e){ return "unavailable"; }
+}
+function setTag(id, state){
+  const el=$(id);
+  const map={granted:["GRANTED","granted"], denied:["DENIED","denied"], prompt:["ASK",""], unavailable:["UNAVAILABLE",""]};
+  const [label,cls]=map[state]||["ASK",""];
+  el.textContent=label;
+  el.className="tag"+(cls?" "+cls:"");
+}
+$("btnAllowMic").addEventListener("click", async ()=>{
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    stream.getTracks().forEach(tr=>tr.stop());
+    toast("Microphone access granted.","ok");
+    refreshAccessTags();
+    if(!recognition) initRecognition();
+  }catch(e){ toast("Microphone permission was denied.","err"); refreshAccessTags(); }
+});
+$("btnAllowLoc").addEventListener("click", ()=>{
+  navigator.geolocation?.getCurrentPosition(()=>{ toast("Location access granted.","ok"); refreshAccessTags(); }, ()=>{ toast("Location access was denied.","err"); refreshAccessTags(); });
+});
+$("btnAllowNotif").addEventListener("click", async ()=>{
+  if(!("Notification" in window)){ toast("Notifications aren't supported in this browser.","err"); return; }
+  const perm=await Notification.requestPermission();
+  toast("Notifications: "+perm, perm==="granted"?"ok":"err");
+  refreshAccessTags();
+});
+
+/* ============================================================
+   17. SETTINGS: LOAD / SAVE / MASK
+   ============================================================ */
+function populateSettingsForm(){
+  $("cfgGroqKey").value = CONFIG.groqKey ? "••••••••••••" : "";
+  $("cfgGroqModel").value = CONFIG.groqModel;
+  $("cfgTemp").value = CONFIG.temperature;
+  $("cfgMaxTok").value = CONFIG.maxTokens;
+  $("cfgEnableVoice").checked = CONFIG.enableVoice;
+  $("cfgElevenKey").value = CONFIG.elevenKey ? "••••••••••••" : "";
+  $("cfgVoiceId").value = CONFIG.elevenVoiceId;
+  $("cfgPreset").value = CONFIG.voicePreset;
+  $("cfgSpeed").value = CONFIG.voiceSpeed; $("speedVal").textContent = CONFIG.voiceSpeed;
+  $("cfgEnableSearch").checked = CONFIG.enableSearch;
+  $("cfgSearchKey").value = CONFIG.searchKey ? "••••••••••••" : "";
+  $("cfgFbKey").value = CONFIG.fbKey ? "••••••••••••" : "";
+  $("cfgFbProject").value = CONFIG.fbProject;
+  $("cfgWakeWord").value = CONFIG.wakeWord;
+  $("cfgContinuous").checked = CONFIG.continuous;
+  $("cfgAutoSpeak").checked = CONFIG.autoSpeak;
+  $("cfgAnimations").checked = CONFIG.animations;
+  $("cfgCompact").checked = CONFIG.compact;
+  $("cfgDebug").checked = CONFIG.debug;
+  $("debugPanel").classList.toggle("hidden", !CONFIG.debug);
+}
+$("cfgSpeed").addEventListener("input", (e)=>{ $("speedVal").textContent=e.target.value; });
+$("cfgDebug").addEventListener("change",(e)=>{ $("debugPanel").classList.toggle("hidden", !e.target.checked); });
+
+function maskedOrKeep(inputVal, existing){
+  if(inputVal==="" ) return "";
+  if(/^•+$/.test(inputVal)) return existing; // untouched masked value
+  return inputVal;
+}
+$("btnSaveConfig").addEventListener("click", ()=>{
+  CONFIG.groqKey = maskedOrKeep($("cfgGroqKey").value, CONFIG.groqKey);
+  CONFIG.groqModel = $("cfgGroqModel").value;
+  CONFIG.temperature = parseFloat($("cfgTemp").value)||0.7;
+  CONFIG.maxTokens = parseInt($("cfgMaxTok").value)||700;
+  CONFIG.enableVoice = $("cfgEnableVoice").checked;
+  CONFIG.elevenKey = maskedOrKeep($("cfgElevenKey").value, CONFIG.elevenKey);
+  CONFIG.elevenVoiceId = $("cfgVoiceId").value.trim();
+  CONFIG.voicePreset = $("cfgPreset").value;
+  CONFIG.voiceSpeed = parseFloat($("cfgSpeed").value)||0.98;
+  CONFIG.enableSearch = $("cfgEnableSearch").checked;
+  CONFIG.searchKey = maskedOrKeep($("cfgSearchKey").value, CONFIG.searchKey);
+  CONFIG.fbKey = maskedOrKeep($("cfgFbKey").value, CONFIG.fbKey);
+  CONFIG.fbProject = $("cfgFbProject").value.trim();
+  CONFIG.wakeWord = $("cfgWakeWord").value.trim() || "hello zuni";
+  CONFIG.continuous = $("cfgContinuous").checked;
+  CONFIG.autoSpeak = $("cfgAutoSpeak").checked;
+  CONFIG.animations = $("cfgAnimations").checked;
+  CONFIG.compact = $("cfgCompact").checked;
+  CONFIG.debug = $("cfgDebug").checked;
+  saveConfig();
+  applyAppearance();
+  refreshStatusBar();
+  populateSettingsForm();
+  toast("Configuration saved.","ok");
+});
+function applyAppearance(){
+  document.body.classList.toggle("reduced-motion", !CONFIG.animations);
+  document.body.style.setProperty("--chat-gap", CONFIG.compact?"4px":"10px");
+}
+function logDebug(line){
+  const panel=$("debugPanel");
+  panel.textContent = "["+new Date().toLocaleTimeString()+"] "+line+"\n"+panel.textContent;
+  if(panel.textContent.length>4000) panel.textContent=panel.textContent.slice(0,4000);
+}
+
+/* ============================================================
+   18. TESTS / DIAGNOSTICS
+   ============================================================ */
+function setDiag(id, ok, label){
+  const el=$(id);
+  el.className="diag-status "+(ok===null?"pending":(ok?"ok":"bad"));
+  el.textContent=label;
+}
+$("testGroq").addEventListener("click", async ()=>{
+  if(!CONFIG.groqKey){ setDiag("diagGroq",false,"NO KEY"); return; }
+  setDiag("diagGroq",null,"TESTING");
+  try{ await callGroq([{role:"system",content:"reply with the single word: ok"},{role:"user",content:"ping"}]); setDiag("diagGroq",true,"ONLINE"); }
+  catch(e){ setDiag("diagGroq",false,"FAILED"); if(CONFIG.debug) logDebug("Groq test: "+e.message); }
+});
+$("testEleven").addEventListener("click", async ()=>{
+  if(!CONFIG.elevenKey || !CONFIG.elevenVoiceId){ setDiag("diagEleven",false,"NO KEY/ID"); return; }
+  setDiag("diagEleven",null,"TESTING");
+  try{
+    const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(CONFIG.elevenVoiceId)}`,{
+      method:"POST", headers:{"Content-Type":"application/json","xi-api-key":CONFIG.elevenKey},
+      body:JSON.stringify({text:"Zuni online.", model_id:"eleven_multilingual_v2"})
+    });
+    if(!res.ok) throw new Error(String(res.status));
+    setDiag("diagEleven",true,"ONLINE");
+  }catch(e){ setDiag("diagEleven",false,"FAILED"); if(CONFIG.debug) logDebug("ElevenLabs test: "+e.message); }
+});
+$("testSearch").addEventListener("click", async ()=>{
+  if(!CONFIG.searchKey){ setDiag("diagSearch",false,"NO KEY"); return; }
+  setDiag("diagSearch",null,"TESTING");
+  try{ await webSearch("test"); setDiag("diagSearch",true,"ONLINE"); }
+  catch(e){ setDiag("diagSearch",false,"FAILED"); if(CONFIG.debug) logDebug("Search test: "+e.message); }
+});
+$("testFirebase").addEventListener("click", async ()=>{
+  if(!CONFIG.fbKey || !CONFIG.fbProject){ setDiag("diagFirebase",false,"NOT CONFIGURED"); return; }
+  setDiag("diagFirebase",null,"TESTING");
+  try{
+    const res=await fetch(`https://firestore.googleapis.com/v1/projects/${CONFIG.fbProject}/databases/(default)/documents?key=${CONFIG.fbKey}`);
+    if(!res.ok && res.status!==404 && res.status!==400) throw new Error(String(res.status));
+    setDiag("diagFirebase",true,"READY");
+  }catch(e){ setDiag("diagFirebase",false,"FAILED"); if(CONFIG.debug) logDebug("Firebase test: "+e.message); }
+});
+$("testMic").addEventListener("click", async ()=>{
+  setDiag("diagMic",null,"TESTING");
+  try{ const s=await navigator.mediaDevices.getUserMedia({audio:true}); s.getTracks().forEach(t=>t.stop()); setDiag("diagMic",true,"GRANTED"); }
+  catch(e){ setDiag("diagMic",false,"DENIED"); }
+});
+$("testAll").addEventListener("click", ()=>{
+  ["testGroq","testEleven","testSearch","testFirebase","testMic"].forEach((id,i)=>setTimeout(()=>$(id).click(), i*250));
+});
+
+/* ============================================================
+   19. FIREBASE — REST-BASED AUTH + CLOUD MEMORY (optional)
+   ============================================================ */
+function fbAuthTag(text){ $("tagFbAuth").textContent=text; }
+async function fbCall(path, body){
+  if(!CONFIG.fbKey) throw new Error("Firebase is not configured.");
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:${path}?key=${CONFIG.fbKey}`,{
+    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error?.message || "Firebase auth failed.");
+  return data;
+}
+$("btnFbSignup").addEventListener("click", async ()=>{
+  try{
+    const data=await fbCall("signUp", {email:$("fbEmail").value, password:$("fbPass").value, returnSecureToken:true});
+    fbIdToken=data.idToken; fbAuthTag("● Logged in"); toast("Firebase account created and signed in.","ok");
+  }catch(e){ toast(e.message,"err"); }
+});
+$("btnFbLogin").addEventListener("click", async ()=>{
+  try{
+    const data=await fbCall("signInWithPassword", {email:$("fbEmail").value, password:$("fbPass").value, returnSecureToken:true});
+    fbIdToken=data.idToken; fbAuthTag("● Logged in"); toast("Signed in.","ok");
+  }catch(e){ toast(e.message,"err"); }
+});
+$("btnFbLogout").addEventListener("click", ()=>{ fbIdToken=null; fbAuthTag("● Logged out"); toast("Signed out."); });
+
+/* ============================================================
+   20. EXPORT / IMPORT
+   ============================================================ */
+function download(filename, content, type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
+$("btnExportTxt").addEventListener("click", ()=>{
+  const txt = CONVO.map(m=>`[${fmtTime(m.ts)}] ${m.role==="user"?"You":"Zuni"}: ${m.text}`).join("\n\n");
+  download("zuni-conversation.txt", txt, "text/plain");
+});
+$("btnExportJson").addEventListener("click", ()=>{
+  download("zuni-conversation.json", JSON.stringify(CONVO,null,2), "application/json");
+});
+$("btnImportJson").addEventListener("click", ()=>$("importFile").click());
+$("importFile").addEventListener("change",(e)=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!Array.isArray(data)) throw new Error("Invalid format.");
+      const valid = data.every(m=>typeof m.text==="string" && (m.role==="user"||m.role==="assistant"));
+      if(!valid) throw new Error("Invalid message format.");
+      CONVO = data.map(m=>({role:m.role, text:String(m.text), ts:m.ts||Date.now(), sources:m.sources||null}));
+      saveConvo(); renderAllHistory();
+      toast("Conversation imported.","ok");
+    }catch(err){ toast("Import failed: "+err.message,"err"); }
+  };
+  reader.readAsText(file);
+  e.target.value="";
+});
+
+/* ============================================================
+   21. DATA MANAGEMENT
+   ============================================================ */
+$("btnClearConvo").addEventListener("click", ()=>{
+  confirmDialog("Clear conversation?","This removes your local chat history. This cannot be undone.", ()=>{
+    CONVO=[]; saveConvo(); renderAllHistory(); toast("Conversation cleared.","ok");
+  });
+});
+$("btnClearSettings").addEventListener("click", ()=>{
+  confirmDialog("Clear settings?","This resets configuration to defaults. Your conversation is kept.", ()=>{
+    CONFIG={...DEFAULT_CONFIG, firstRunDone:true}; saveConfig(); populateSettingsForm(); refreshStatusBar(); toast("Settings cleared.","ok");
+  });
+});
+$("btnResetZuni").addEventListener("click", ()=>{
+  confirmDialog("Reset Zuni?","This clears all settings, conversation and memory on this device. This cannot be undone.", ()=>{
+    localStorage.removeItem("zuni_config"); localStorage.removeItem("zuni_conversation"); localStorage.removeItem("zuni_memory");
+    location.reload();
+  });
+});
+
+/* ============================================================
+   22. PARTICLES (lightweight canvas)
+   ============================================================ */
+function initParticles(){
+  const canvas=$("particles");
+  const ctx=canvas.getContext("2d");
+  let w,h,particles=[];
+  const isSmall = window.innerWidth<480;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const count = reduce ? 0 : (isSmall?18:34);
+  function resize(){ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; }
+  resize(); window.addEventListener("resize", resize);
+  for(let i=0;i<count;i++){
+    particles.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.4+.3,vy:-(Math.random()*.15+.03),o:Math.random()*.4+.1});
+  }
+  function tick(){
+    if(!CONFIG.animations || reduce){ ctx.clearRect(0,0,w,h); requestAnimationFrame(tick); return; }
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p=>{
+      p.y+=p.vy; if(p.y<-4){p.y=h+4; p.x=Math.random()*w;}
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(120,200,220,${p.o})`; ctx.fill();
+    });
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ============================================================
+   23. INIT
+   ============================================================ */
+function initializeApp(){
+  applyAppearance();
+  renderAllHistory();
+  refreshStatusBar();
+  updateNetPill();
+  populateSettingsForm();
+  setMode(CONFIG.wakeMode?"wake":"direct");
+  initParticles();
+  setState("idle");
+
+  if(recognitionSupported){ initRecognition(); }
+  else { toast("Voice recognition is not supported in this browser. Please use a supported browser such as Chrome.","err"); }
+
+  if(!CONFIG.firstRunDone){
+    openPanel("welcomeOverlay");
+  }
+  $("welcomeOverlay").addEventListener("click", function markDone(e){
+    if(e.target.id==="btnConfigure"){ CONFIG.firstRunDone=true; saveConfig(); }
+  });
+
+  setInterval(updateNetPill, 5000);
+}
+document.addEventListener("DOMContentLoaded", initializeApp);
+})();
+</script>
+</body>
+</html>
